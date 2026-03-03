@@ -18,9 +18,25 @@
             font-family: 'Noto Sans', sans-serif;
             min-height: 100vh;
             display: flex; align-items: center; justify-content: center;
-            overflow: hidden;
             background: #06040f;
             color: #eee;
+        }
+
+        /* Allow scrolling on mobile when content overflows */
+        @media (max-width: 1023px) {
+            body {
+                overflow-y: auto;
+                overflow-x: hidden;
+                align-items: flex-start;
+                padding: 20px 0;
+            }
+        }
+
+        /* Prevent scrolling on desktop */
+        @media (min-width: 1024px) {
+            body {
+                overflow: hidden;
+            }
         }
 
         /* ── Video BG ── */
