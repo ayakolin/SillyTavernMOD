@@ -3,7 +3,7 @@
 dataRoot: ./data
 # -- SERVER CONFIGURATION --
 # Listen for incoming connections
-listen: false
+listen: true
 # Listen on a specific address, supports IPv4 and IPv6
 listenAddress:
   ipv4: 0.0.0.0
@@ -54,9 +54,9 @@ ssl:
   keyPassphrase: ""
 # -- SECURITY CONFIGURATION --
 # Toggle whitelist mode
-whitelistMode: true
+whitelistMode: false
 # Whitelist will also verify IP in X-Forwarded-For / X-Real-IP headers
-enableForwardedWhitelist: true
+enableForwardedWhitelist: false
 # Whitelist of allowed IP addresses
 whitelist:
   - ::1
@@ -101,9 +101,9 @@ requestProxy:
     - localhost
     - 127.0.0.1
 # Enable multi-user mode
-enableUserAccounts: false
+enableUserAccounts: true
 # Enable discreet login mode: hides user list on the login screen
-enableDiscreetLogin: false
+enableDiscreetLogin: true
 # If `basicAuthMode` and this are enabled then
 # the username and passwords for basic auth are the same as those
 # for the individual accounts
@@ -324,3 +324,40 @@ gemini:
 enableServerPlugins: false
 # Attempt to automatically update server plugins on startup
 enableServerPluginsAutoUpdate: true
+enableInvitationCodes: false    # 启用邀请码系统
+enableForum: true              # 启用论坛
+enablePublicCharacters: true   # 启用公共角色卡库
+purchaseLink: ''                # 续费购买链接
+
+oauth:
+  github:
+    enabled: false
+    clientId: ''
+    clientSecret: ''
+    callbackUrl: 'http://localhost:8000/api/oauth/github/callback'
+  discord:
+    enabled: false
+    clientId: ''
+    clientSecret: ''
+    callbackUrl: 'http://localhost:8000/api/oauth/discord/callback'
+  linuxdo:
+    enabled: false
+    clientId: ''
+    clientSecret: ''
+    callbackUrl: 'http://localhost:8000/api/oauth/linuxdo/callback'
+
+email:
+  enabled: false
+  smtp:
+    host: ''
+    port: 587
+    secure: false
+    user: ''
+    password: ''
+  from: ''
+  fromName: 'SillyTavern'
+
+userStorage:
+  enabled: false
+  defaultLimitMiB: 500
+  dailyCheckInMiB: 0

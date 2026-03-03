@@ -70,6 +70,7 @@
         "multer": "^2.0.2",
         "node-fetch": "^3.3.2",
         "node-persist": "^4.0.4",
+        "nodemailer": "^8.0.1",
         "open": "^10.2.0",
         "png-chunk-text": "^1.0.0",
         "png-chunks-extract": "^1.0.0",
@@ -89,7 +90,7 @@
         "webpack": "^5.98.0",
         "write-file-atomic": "^5.0.1",
         "ws": "^8.18.3",
-        "yaml": "^2.8.1",
+        "yaml": "^2.8.2",
         "yargs": "^17.7.1",
         "yauzl": "^3.2.0"
     },
