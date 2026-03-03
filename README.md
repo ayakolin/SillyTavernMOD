@@ -33,30 +33,115 @@ LLM Frontend for Power Users
 
 ## 运行与基础使用
 
-> 以下命令假设当前工作目录为仓库根目录 `SillyTavern/`。
+> 以下步骤以仓库地址 `https://github.com/zhaiiker/SillyTavernMOD`、分支 `stc-mod` 为例，假设当前工作目录为项目根目录。
 
-1. 安装依赖
+### 1. 环境准备
+
+- **Node.js**：建议使用 20.x 或 22.x LTS（不要使用过新的 24.x，以免某些依赖尚未兼容）。  
+- **Git**：用于克隆仓库。  
+- **操作系统**：Windows / Linux / macOS 均可，云服务器推荐 Linux。  
+
+### 2. 获取代码并安装依赖
 
 ```bash
+git clone https://github.com/zhaiiker/SillyTavernMOD/tree/stc-mod
+cd SillyTavernMOD
+
 npm install
+
+sh start.sh 或 npm run start
 ```
 
-2. 启动服务
+### 3. 初始化配置（启用默认 Basic Auth）
+
+首次运行前，请先在项目根目录创建 `config.yaml`（如不存在，可从 `default/config.yaml` 复制一份）：
+
+```bash
+cp default/config.yaml ./config.yaml    # 若文件已存在可跳过
+```
+
+然后编辑根目录下的 `config.yaml`，确认以下内容存在且缩进正确：
+
+```yaml
+basicAuthMode: true
+
+basicAuthUser:
+  username: "admin"
+  password: "123456"
+```
+
+- `basicAuthMode: true`：默认开启 HTTP Basic Auth 保护，防止云服务器直接暴露在公网。
+- 默认访问账号：**admin / 123456**（仅用于进入站点大门，进入 ST 直接点击登录就可以进入，然后需要给默认管理员设置密码）。
+
+### 4. 启动服务
+
+本地或服务器前台启动（调试阶段推荐）：
+
+```bash
+node server.js --host 0.0.0.0 --port 8000
+```
+
+或使用 npm 脚本（等价于上方命令的默认参数）：
 
 ```bash
 npm run start
 ```
 
-3. 默认访问地址
+默认访问地址：
 
 - SillyTavern 主站（带欢迎页 / 登录页）：`http://127.0.0.1:8000/`
 - 公共角色卡库（若在配置中启用）：`http://127.0.0.1:8000/public-characters`
 - 社区论坛（若在配置中启用）：`http://127.0.0.1:8000/forum`
 
-4. STC 管理面板
+> 云服务器上请将 `127.0.0.1` 换成你的公网 IP 或域名，例如：`http://your-ip:8000/`。
 
-- 登录具有管理员权限的账号，在聊天界面右下角可见 STC 浮动按钮，点击进入管理面板。
-- 管理面板内部包含系统监控、邀请码、公告、邮件配置、OAuth 配置、默认模板、用户空间、用户管理、定时任务等功能。
+### 5. 首次登录与关闭 Basic Auth 的推荐流程
+
+1. **通过 Basic Auth 进入站点**
+   - 浏览器访问 `http://服务器IP:8000/`。  
+   - 在弹出的浏览器登录框中输入：  
+     - 用户名：`admin`  
+     - 密码：`123456`  
+
+2. **为本地管理员设置密码**
+   - 进入 SillyTavern 后，使用默认本地账号（例如 `default-user (admin)`）登录。  
+   - 在官方「账户 / 用户管理」管理面板的「用户管理」中，为所有管理员账号设置**强密码**。  
+
+3. **关闭 Basic Auth（可选，但不建议在公网完全裸奔）**
+   - 确认所有管理员账户已设置密码后，可在根目录 `config.yaml` 中将：  
+
+     ```yaml
+     basicAuthMode: false
+     ```
+
+     保存退出，并重启服务。此后访问站点将不再弹出浏览器级别的用户名/密码框，只保留 SillyTavern 自身的登录校验。
+
+> 若以后希望再次启用 Basic Auth，只需将 `basicAuthMode` 改回 `true` 即可。
+
+### 6. 使用 PM2 后台守护（生产环境推荐）
+
+在服务器上建议使用 [PM2](https://pm2.keymetrics.io/) 管理进程，避免 SSH 断开导致服务退出：
+
+```bash
+npm install -g pm2
+
+pm2 start server.js --name sillytavern -- \
+  --host 0.0.0.0 --port 8000
+
+pm2 save
+pm2 startup   # 按提示执行生成的命令，设置开机自启
+```
+
+查看运行日志：
+
+```bash
+pm2 logs sillytavern
+```
+
+### 7. STC 管理面板入口
+
+- 使用管理员账号登录 SillyTavern 后，在聊天界面右下角可以看到 STC 的紫色悬浮按钮。  
+- 点击即可打开 STC 管理面板，内含：系统监控、邀请码管理、公告管理、邮件配置、OAuth 配置、默认模板、用户空间、用户管理、定时任务等功能。
 
 ---
 
