@@ -855,7 +855,12 @@ async function renderOAuthTab(container) {
         if (r.ok) oauthConfig = await r.json();
     } catch {}
 
-    const renderProvider = (id, label, icon, color, extra = '') => `
+    // Get current domain for callback URL example
+    const currentDomain = window.location.origin;
+
+    const renderProvider = (id, label, icon, color, extra = '') => {
+        const callbackExample = `${currentDomain}/api/stc/oauth/${id}/callback`;
+        return `
       <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:16px;margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <i class="${icon}" style="color:${color};font-size:1.3em"></i>
@@ -871,15 +876,23 @@ async function renderOAuthTab(container) {
         <div class="stc-form-row"><label>Callback URL:</label>
           <input class="stc-oauth-callback" data-provider="${id}" type="text" value="${esc(oauthConfig[id]?.callbackUrl || '')}" placeholder="留空则自动生成"></div>
         ${extra}
+        <div style="background:rgba(255,255,255,.02);border-left:3px solid #4a90e2;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:.78em;color:#aaa">
+          <div style="color:#4a90e2;font-weight:600;margin-bottom:4px"><i class="fa-solid fa-circle-info"></i> 回调地址配置说明</div>
+          <div style="line-height:1.6">
+            在 ${label} 开发者平台创建应用时，需要填写回调地址（Redirect URI / Callback URL）：<br>
+            <code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px;color:#8ab4f8;font-size:.95em;display:inline-block;margin:4px 0">${callbackExample}</code><br>
+            <button class="stc-copy-callback menu_button" data-url="${callbackExample}" style="padding:4px 10px;font-size:.85em;margin-top:4px">
+              <i class="fa-solid fa-copy"></i> 复制回调地址
+            </button>
+          </div>
+        </div>
         <div style="text-align:center;margin-top:10px">
           <button class="stc-oauth-save menu_button" data-provider="${id}" style="padding:7px 24px;background:#27ae60;font-size:.85em;white-space:nowrap;width:auto;display:inline-flex;align-items:center;gap:6px">
             <i class="fa-solid fa-save"></i> 保存 ${label}
           </button>
         </div>
-        <div style="font-size:.75em;color:#888;margin-top:6px">
-          <a href="#" onclick="return false" style="color:#8ab4f8">在 ${label} Developer Portal 创建应用获取凭据</a><br>
-          提示：如果留空 Callback URL，系统会自动根据当前服务器地址和端口生成回调 URL，无需手动配置</div>
       </div>`;
+    };
 
     container.innerHTML = `
       <h3 style="margin:0 0 16px">OAuth 第三方登录配置</h3>
@@ -917,6 +930,15 @@ async function renderOAuthTab(container) {
                 if (!r.ok) throw new Error((await r.json())?.error);
                 toast(`${provider} OAuth 配置已保存（需重启生效）`);
             } catch (e) { toast('保存失败: ' + e.message, true); }
+        });
+    });
+
+    // Copy callback URL buttons
+    container.querySelectorAll('.stc-copy-callback').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const url = btn.dataset.url;
+            copyText(url);
+            toast('回调地址已复制到剪贴板');
         });
     });
 }
