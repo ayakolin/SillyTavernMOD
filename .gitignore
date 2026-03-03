@@ -57,3 +57,6 @@ public/scripts/extensions/third-party
 yarn.lock
 *.code-workspace
 test-results/
+
+!public/scripts/extensions/third-party/stc-admin-panel/
+!public/scripts/extensions/third-party/stc-admin-panel/**
