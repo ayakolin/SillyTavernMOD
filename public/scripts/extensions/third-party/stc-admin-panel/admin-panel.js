@@ -58,14 +58,66 @@ function copyText(text) {
 }
 
 function toast(msg, isError = false) {
+    // Use simple custom toast with high z-index and !important styles
+    // to ensure visibility on both PC and mobile
+    if (!document.getElementById('stc-toast-style')) {
+        const style = document.createElement('style');
+        style.id = 'stc-toast-style';
+        style.textContent = `
+            @keyframes stcFadeIn {
+                from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+                to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            }
+            .stc-toast-message {
+                position: fixed !important;
+                top: 20px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                z-index: 2147483648 !important;
+                padding: 12px 24px !important;
+                border-radius: 8px !important;
+                font-size: 14px !important;
+                font-family: inherit !important;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+                animation: stcFadeIn 0.3s ease !important;
+                pointer-events: auto !important;
+                max-width: 90% !important;
+                word-wrap: break-word !important;
+                color: #fff !important;
+            }
+            #stc-admin-modal.stc-toast-active {
+                padding-top: 80px !important;
+                transition: padding-top 0.3s ease !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     const el = document.createElement('div');
+    el.className = 'stc-toast-message';
     el.textContent = msg;
-    el.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);
-        background:${isError ? '#e74c3c' : '#27ae60'};color:#fff;padding:10px 24px;
-        border-radius:8px;z-index:999999;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.3);
-        animation:fadeIn 0.2s ease`;
+    el.style.background = isError ? '#e74c3c' : '#27ae60';
+
+    // Always append to body to ensure it's above everything
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
+
+    // Push down the admin modal to reveal the toast
+    const adminModal = document.getElementById('stc-admin-modal');
+    if (adminModal) {
+        adminModal.classList.add('stc-toast-active');
+    }
+
+    setTimeout(() => {
+        el.style.transition = 'opacity 0.3s';
+        el.style.opacity = '0';
+        setTimeout(() => {
+            el.remove();
+            // Restore admin modal position
+            if (adminModal) {
+                adminModal.classList.remove('stc-toast-active');
+            }
+        }, 300);
+    }, 3000);
 }
 
 function setBtn(id, loading, origHtml) {
@@ -115,7 +167,7 @@ function createPagination(current, total, btnClass = 'stc-page-btn') {
 export function buildAdminPanelHTML() {
     return `
 <div id="stc-admin-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2147483647;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
-  <div style="background:#16213e;border-radius:12px;width:100%;max-width:960px;min-height:500px;box-shadow:0 8px 32px rgba(0,0,0,.5);color:#eee;font-family:sans-serif">
+  <div style="position:relative;z-index:1;background:#16213e;border-radius:12px;width:100%;max-width:960px;min-height:500px;box-shadow:0 8px 32px rgba(0,0,0,.5);color:#eee;font-family:sans-serif">
 
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #2a3a5e">
@@ -444,14 +496,21 @@ async function renderInvitationTab(container) {
 }
 
 async function loadInvitationCodes() {
-    document.getElementById('stc-inv-list').innerHTML = `<div style="text-align:center;padding:20px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>`;
+    const listEl = document.getElementById('stc-inv-list');
+    if (!listEl) {
+        console.error('[STC] stc-inv-list element not found');
+        return;
+    }
+    listEl.innerHTML = `<div style="text-align:center;padding:20px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>`;
     try {
         const r = await fetch('/api/stc/invitation-codes/list', { headers: getHeaders() });
         if (!r.ok) throw new Error(await r.text());
         currentInvitationCodes = await r.json();
+        console.log('[STC] Loaded invitation codes:', currentInvitationCodes.length);
         renderInvitationCodes();
     } catch (e) {
-        document.getElementById('stc-inv-list').innerHTML = `<div style="color:#e74c3c;text-align:center;padding:20px">加载失败: ${esc(e.message)}</div>`;
+        console.error('[STC] Failed to load invitation codes:', e);
+        listEl.innerHTML = `<div style="color:#e74c3c;text-align:center;padding:20px">加载失败: ${esc(e.message)}</div>`;
     }
 }
 
@@ -1134,7 +1193,7 @@ async function renderUsersTab(container) {
     await loadStorageAnalysis(1);
 }
 
-async function loadStorageAnalysis(page) {
+async function loadStorageAnalysis(page, sortBy = 'name') {
     if (page !== undefined) currentStoragePage = page;
     const container = document.getElementById('stc-ua-list');
     if (!container) return;
@@ -1145,17 +1204,18 @@ async function loadStorageAnalysis(page) {
             limit: STORAGE_PER_PAGE,
         });
         if (storageSearchTerm) params.set('search', storageSearchTerm);
+        if (sortBy) params.set('sortBy', sortBy);
         const r = await fetch(`/api/stc/scheduled-tasks/storage-analysis?${params}`, { headers: getHeaders() });
         if (!r.ok) throw new Error(await r.text());
         const result = await r.json();
         _storageAnalysisCache = result;
-        renderStorageAnalysis(result);
+        renderStorageAnalysis(result, sortBy);
     } catch (e) {
         container.innerHTML = `<div style="color:#e74c3c;text-align:center;padding:20px">加载失败: ${esc(e.message)}</div>`;
     }
 }
 
-function renderStorageAnalysis(result) {
+function renderStorageAnalysis(result, sortBy = 'name') {
     const container = document.getElementById('stc-ua-list');
     if (!container) return;
 
@@ -1170,9 +1230,15 @@ function renderStorageAnalysis(result) {
         return;
     }
 
-    const pageMiB = data.reduce((s, u) => s + u.totalMiB, 0).toFixed(2);
+    // Client-side sorting if backend doesn't support it
+    let sortedData = [...data];
+    if (sortBy === 'storage') {
+        sortedData.sort((a, b) => b.totalMiB - a.totalMiB);
+    }
 
-    const rows = data.map(u => {
+    const pageMiB = sortedData.reduce((s, u) => s + u.totalMiB, 0).toFixed(2);
+
+    const rows = sortedData.map(u => {
         const c = u.categories || {};
         const backupMiB = c.backups || 0;
         return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s"
@@ -1194,6 +1260,9 @@ function renderStorageAnalysis(result) {
     const startIdx = (curPage - 1) * STORAGE_PER_PAGE + 1;
     const endIdx   = Math.min(curPage * STORAGE_PER_PAGE, total);
 
+    const sortLabel = sortBy === 'storage' ? '按占用排序（高→低）' : '按用户名排序';
+    const sortIcon = sortBy === 'storage' ? 'fa-arrow-down-wide-short' : 'fa-arrow-down-a-z';
+
     container.innerHTML = `
         <!-- Search bar -->
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
@@ -1204,6 +1273,9 @@ function renderStorageAnalysis(result) {
                 <i class="fa-solid fa-magnifying-glass"></i> 搜索</button>
             ${storageSearchTerm ? `<button id="stc-storage-clear-btn" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap">
                 <i class="fa-solid fa-xmark"></i> 清除</button>` : ''}
+            <button id="stc-storage-sort-btn" class="menu_button" data-sort="${sortBy}"
+                style="padding:6px 14px;font-size:.85em;white-space:nowrap;background:${sortBy === 'storage' ? '#4a90e2' : ''}">
+                <i class="fa-solid ${sortIcon}"></i> ${sortLabel}</button>
         </div>
         <!-- Summary -->
         <div style="color:#888;font-size:.82em;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap">
@@ -1212,7 +1284,6 @@ function renderStorageAnalysis(result) {
             </span>
             <span>显示 <strong style="color:#eee">${startIdx}–${endIdx}</strong></span>
             <span>本页占用 <strong style="color:#eee">${pageMiB} MiB</strong></span>
-            <span style="color:#555">· 按用户名字典序排列（每页 ${STORAGE_PER_PAGE} 条）</span>
         </div>
         ${pager}
         <div style="overflow-x:auto;margin-top:8px">
@@ -1237,19 +1308,26 @@ function renderStorageAnalysis(result) {
     const doSearch = () => {
         storageSearchTerm = searchInput?.value?.trim() || '';
         currentStoragePage = 1;
-        loadStorageAnalysis(1);
+        loadStorageAnalysis(1, sortBy);
     };
     container.querySelector('#stc-storage-search-btn')?.addEventListener('click', doSearch);
     container.querySelector('#stc-storage-clear-btn')?.addEventListener('click', () => {
         storageSearchTerm = '';
         currentStoragePage = 1;
-        loadStorageAnalysis(1);
+        loadStorageAnalysis(1, sortBy);
     });
     searchInput?.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
+    // Sort button handler
+    container.querySelector('#stc-storage-sort-btn')?.addEventListener('click', () => {
+        const newSort = sortBy === 'storage' ? 'name' : 'storage';
+        currentStoragePage = 1;
+        loadStorageAnalysis(1, newSort);
+    });
+
     // Pagination handlers
     container.querySelectorAll('.stc-storage-page-btn').forEach(b => {
-        b.addEventListener('click', () => loadStorageAnalysis(parseInt(b.dataset.page)));
+        b.addEventListener('click', () => loadStorageAnalysis(parseInt(b.dataset.page), sortBy));
     });
 }
 
