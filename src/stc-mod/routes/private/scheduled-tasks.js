@@ -104,12 +104,13 @@ router.post('/config', requireAdminMiddleware, (req, res) => {
 });
 
 // Admin: get storage analysis for all users (paginated)
-// Query params: page (1-based, default 1), limit (default 30), search (handle substring)
+// Query params: page (1-based, default 1), limit (default 30), search (handle substring), sortBy (name|storage)
 router.get('/storage-analysis', requireAdminMiddleware, async (req, res) => {
     try {
         const page   = Math.max(1, parseInt(String(req.query.page  ?? '1')) || 1);
         const limit  = Math.min(200, Math.max(1, parseInt(String(req.query.limit ?? '30')) || 30));
         const search = String(req.query.search ?? '').toLowerCase().trim();
+        const sortBy = String(req.query.sortBy ?? 'name').toLowerCase(); // 'name' or 'storage'
 
         const allHandles = await getAllUserHandles();
         // Apply search filter on handle name first (cheap, no disk I/O)
@@ -160,21 +161,27 @@ router.get('/storage-analysis', requireAdminMiddleware, async (req, res) => {
             };
         }
 
-        // Scan only the page slice — avoids scanning hundreds of directories at once
+        // Scan ALL filtered users first (needed for global sorting)
+        const allData = /** @type {NonNullable<ReturnType<typeof analyseUser>>[]} */ (
+            filtered.map(analyseUser).filter(Boolean)
+        );
+
+        // Sort based on sortBy parameter
+        if (sortBy === 'storage') {
+            allData.sort((a, b) => b.totalBytes - a.totalBytes); // High to low
+        } else {
+            allData.sort((a, b) => a.handle.localeCompare(b.handle)); // Alphabetical
+        }
+
+        // Apply pagination after sorting
         const offset = (page - 1) * limit;
-        const pageHandles = filtered.slice(offset, offset + limit);
+        const pageData = allData.slice(offset, offset + limit);
 
-        const pageData = /** @type {NonNullable<ReturnType<typeof analyseUser>>[]} */ (
-            pageHandles.map(analyseUser).filter(Boolean)
-        ).sort((a, b) => b.totalBytes - a.totalBytes);
-
-        // Grand total requires scanning all filtered handles (expensive for large sets).
-        // We return a lightweight summary using stored handle count and lazy total.
         res.json({
-            total:       filtered.length,
+            total:       allData.length,
             page,
             limit,
-            totalPages:  Math.ceil(filtered.length / limit),
+            totalPages:  Math.ceil(allData.length / limit),
             data:        pageData,
         });
     } catch (error) {

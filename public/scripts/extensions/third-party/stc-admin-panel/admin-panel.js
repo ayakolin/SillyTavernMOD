@@ -1230,15 +1230,10 @@ function renderStorageAnalysis(result, sortBy = 'name') {
         return;
     }
 
-    // Client-side sorting if backend doesn't support it
-    let sortedData = [...data];
-    if (sortBy === 'storage') {
-        sortedData.sort((a, b) => b.totalMiB - a.totalMiB);
-    }
+    // Backend handles sorting, no need for client-side sorting
+    const pageMiB = data.reduce((s, u) => s + u.totalMiB, 0).toFixed(2);
 
-    const pageMiB = sortedData.reduce((s, u) => s + u.totalMiB, 0).toFixed(2);
-
-    const rows = sortedData.map(u => {
+    const rows = data.map(u => {
         const c = u.categories || {};
         const backupMiB = c.backups || 0;
         return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s"
