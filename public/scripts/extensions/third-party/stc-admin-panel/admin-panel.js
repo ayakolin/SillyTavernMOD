@@ -275,7 +275,7 @@ async function renderSystemTab(container) {
         <h3 style="margin:0;flex-shrink:0">用户统计</h3>
         <div style="display:flex;gap:8px;align-items:center">
           <input id="stc-user-search" type="text" placeholder="搜索用户..." style="padding:6px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em;width:160px">
-          <button id="stc-sys-refresh" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap;flex-shrink:0"><i class="fa-solid fa-rotate-right"></i> 刷新</button>
+          <button id="stc-sys-refresh" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap;flex-shrink:0;color:#fff"><i class="fa-solid fa-rotate-right"></i> 刷新</button>
         </div>
       </div>
       <div id="stc-user-list"><div style="text-align:center;padding:30px;color:#888">加载中...</div></div>`;
@@ -400,7 +400,7 @@ async function renderInvitationTab(container) {
         <div style="display:flex;gap:8px;align-items:center">
           <span style="white-space:nowrap;font-size:.85em">续费购买链接：</span>
           <input id="stc-purchase-link" type="text" placeholder="https://your-shop.com/buy-code" style="flex:1;padding:7px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em">
-          <button id="stc-save-purchase-link" class="menu_button" style="padding:7px 14px;white-space:nowrap;font-size:.85em"><i class="fa-solid fa-save"></i> 保存购买链接</button>
+          <button id="stc-save-purchase-link" class="menu_button" style="padding:7px 14px;white-space:nowrap;font-size:.85em;color:#fff"><i class="fa-solid fa-save"></i> 保存购买链接</button>
         </div>
       </div>
 
@@ -427,10 +427,10 @@ async function renderInvitationTab(container) {
             <input id="stc-inv-count" type="number" value="1" min="1" max="100"
               style="width:96px;height:36px;padding:0 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.9em;box-sizing:border-box">
             <button id="stc-create-single-inv" class="menu_button"
-              style="flex:1;height:36px;padding:0 16px;font-size:.88em;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box">
+              style="flex:1;height:36px;padding:0 16px;font-size:.88em;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;color:#fff">
               <i class="fa-solid fa-plus"></i> 单个创建</button>
             <button id="stc-create-batch-inv" class="menu_button"
-              style="flex:1;height:36px;padding:0 16px;font-size:.88em;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box">
+              style="flex:1;height:36px;padding:0 16px;font-size:.88em;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;color:#fff">
               <i class="fa-solid fa-layer-group"></i> 批量创建</button>
           </div>
         </div>
@@ -458,10 +458,10 @@ async function renderInvitationTab(container) {
           <option value="used">已使用</option>
         </select>
         <button id="stc-inv-refresh" class="menu_button"
-          style="height:36px;padding:0 16px;font-size:.85em;white-space:nowrap;display:flex;align-items:center;gap:6px;box-sizing:border-box">
+          style="height:36px;padding:0 16px;font-size:.85em;white-space:nowrap;display:flex;align-items:center;gap:6px;box-sizing:border-box;color:#fff">
           <i class="fa-solid fa-rotate-right"></i> 刷新</button>
         <button id="stc-inv-download-all" class="menu_button"
-          style="height:36px;padding:0 16px;font-size:.85em;white-space:nowrap;display:flex;align-items:center;gap:6px;box-sizing:border-box">
+          style="height:36px;padding:0 16px;font-size:.85em;white-space:nowrap;display:flex;align-items:center;gap:6px;box-sizing:border-box;color:#fff">
           <i class="fa-solid fa-download"></i> 下载全部</button>
       </div>
       <div id="stc-inv-list">加载中...</div>`;
@@ -557,8 +557,8 @@ function renderInvitationCodes() {
               <td style="padding:8px 6px">${c.usedBy ? esc(c.usedBy) : '—'}</td>
               <td style="padding:8px 6px">${new Date(c.createdAt).toLocaleDateString('zh-CN')}</td>
               <td style="padding:8px 6px;text-align:center;white-space:nowrap">
-                <button class="menu_button" onclick="navigator.clipboard.writeText('${c.code}').then(()=>stcToast('已复制'))" style="padding:3px 8px;font-size:.8em;margin-right:4px" title="复制"><i class="fa-solid fa-copy"></i></button>
-                <button class="stc-del-code menu_button" data-code="${esc(c.code)}" style="padding:3px 8px;font-size:.8em;background:#c0392b" title="删除"><i class="fa-solid fa-trash"></i></button>
+                <button class="menu_button" onclick="navigator.clipboard.writeText('${c.code}').then(()=>stcToast('已复制'))" style="padding:3px 8px;font-size:.8em;margin-right:4px;color:#fff" title="复制"><i class="fa-solid fa-copy"></i></button>
+                <button class="stc-del-code menu_button" data-code="${esc(c.code)}" style="padding:3px 8px;font-size:.8em;background:#c0392b;color:#fff" title="删除"><i class="fa-solid fa-trash"></i></button>
               </td>
             </tr>`).join('')}
           </tbody>
@@ -606,9 +606,9 @@ async function renderAnnouncementsTab(container) {
     container.innerHTML = `
       <!-- Type switch -->
       <div style="display:flex;gap:8px;margin-bottom:16px;justify-content:center">
-        <button id="stc-ann-tab-main" class="menu_button" data-anntype="main" style="padding:7px 24px;background:#6c63ff;white-space:nowrap;flex:0 1 auto">
+        <button id="stc-ann-tab-main" class="menu_button" data-anntype="main" style="padding:7px 24px;background:#6c63ff;white-space:nowrap;flex:0 1 auto;color:#fff">
           <i class="fa-solid fa-home"></i> 主站公告</button>
-        <button id="stc-ann-tab-login" class="menu_button" data-anntype="login" style="padding:7px 24px;white-space:nowrap;flex:0 1 auto">
+        <button id="stc-ann-tab-login" class="menu_button" data-anntype="login" style="padding:7px 24px;white-space:nowrap;flex:0 1 auto;color:#fff">
           <i class="fa-solid fa-right-to-bracket"></i> 登录页面公告</button>
       </div>
 
@@ -630,14 +630,14 @@ async function renderAnnouncementsTab(container) {
           <label style="display:flex;align-items:center;gap:6px;font-size:.85em;cursor:pointer">
             <input id="stc-ann-enabled" type="checkbox" checked> 立即启用
           </label>
-          <button id="stc-ann-submit" class="menu_button" style="padding:8px 24px;background:#27ae60;margin-left:auto;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+          <button id="stc-ann-submit" class="menu_button" style="padding:8px 24px;background:#27ae60;margin-left:auto;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;color:#fff">
             <i class="fa-solid fa-plus"></i> 创建</button>
         </div>
       </div>
 
       <!-- List -->
       <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-        <button id="stc-ann-refresh" class="menu_button" style="padding:6px 18px;font-size:.85em;white-space:nowrap"><i class="fa-solid fa-rotate-right"></i> 刷新</button>
+        <button id="stc-ann-refresh" class="menu_button" style="padding:6px 18px;font-size:.85em;white-space:nowrap;color:#fff"><i class="fa-solid fa-rotate-right"></i> 刷新</button>
       </div>
       <div id="stc-ann-list">加载中...</div>`;
 
@@ -774,10 +774,10 @@ async function renderEmailTab(container) {
           <input id="stc-email-fromname" type="text" placeholder="SillyTavern"></div>
 
         <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-          <button id="stc-email-save" class="menu_button" style="padding:8px 24px;background:#27ae60;white-space:nowrap;flex-shrink:0"><i class="fa-solid fa-save"></i> 保存</button>
+          <button id="stc-email-save" class="menu_button" style="padding:8px 24px;background:#27ae60;white-space:nowrap;flex-shrink:0;color:#fff"><i class="fa-solid fa-save"></i> 保存</button>
           <div style="display:flex;gap:6px;flex:1;align-items:center">
             <input id="stc-email-test-addr" type="email" placeholder="发送测试邮件到..." style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em">
-            <button id="stc-email-test" class="menu_button" style="padding:8px 16px;white-space:nowrap"><i class="fa-solid fa-paper-plane"></i> 发送测试邮件</button>
+            <button id="stc-email-test" class="menu_button" style="padding:8px 16px;white-space:nowrap;color:#fff"><i class="fa-solid fa-paper-plane"></i> 发送测试邮件</button>
           </div>
         </div>
 
@@ -881,13 +881,13 @@ async function renderOAuthTab(container) {
           <div style="line-height:1.6">
             在 ${label} 开发者平台创建应用时，需要填写回调地址（Redirect URI / Callback URL）：<br>
             <code class="stc-callback-url" style="background:rgba(0,0,0,.3);padding:4px 8px;border-radius:3px;color:#8ab4f8;font-size:.9em;display:block;margin:6px 0;word-break:break-all;overflow-wrap:break-word">${callbackExample}</code>
-            <button class="stc-copy-callback menu_button" data-url="${callbackExample}" style="padding:6px 12px;font-size:.85em;margin-top:4px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+            <button class="stc-copy-callback menu_button" data-url="${callbackExample}" style="padding:6px 12px;font-size:.85em;margin-top:4px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;color:#fff">
               <i class="fa-solid fa-copy"></i> <span>复制回调地址</span>
             </button>
           </div>
         </div>
         <div style="text-align:center;margin-top:10px">
-          <button class="stc-oauth-save menu_button" data-provider="${id}" style="padding:7px 24px;background:#27ae60;font-size:.85em;white-space:nowrap;width:auto;display:inline-flex;align-items:center;gap:6px">
+          <button class="stc-oauth-save menu_button" data-provider="${id}" style="padding:7px 24px;background:#27ae60;font-size:.85em;white-space:nowrap;width:auto;display:inline-flex;align-items:center;gap:6px;color:#fff">
             <i class="fa-solid fa-save"></i> 保存 ${label}
           </button>
         </div>
@@ -985,7 +985,7 @@ async function renderTemplateTab(container) {
             </label>`).join('')}
         </div>
         <div style="text-align:center;margin-top:14px">
-          <button id="stc-tpl-save" class="menu_button" style="padding:9px 28px;background:#27ae60;white-space:nowrap;width:auto;display:inline-flex;align-items:center;gap:6px">
+          <button id="stc-tpl-save" class="menu_button" style="padding:9px 28px;background:#27ae60;white-space:nowrap;width:auto;display:inline-flex;align-items:center;gap:6px;color:#fff">
             <i class="fa-solid fa-save"></i> 保存为默认配置
           </button>
         </div>
@@ -993,7 +993,7 @@ async function renderTemplateTab(container) {
       </div>
 
       <div style="text-align:center">
-        <button id="stc-tpl-delete" class="menu_button" style="padding:8px 24px;background:#c0392b;font-size:.85em;white-space:nowrap;width:auto;display:inline-flex;align-items:center;gap:6px">
+        <button id="stc-tpl-delete" class="menu_button" style="padding:8px 24px;background:#c0392b;font-size:.85em;white-space:nowrap;width:auto;display:inline-flex;align-items:center;gap:6px;color:#fff">
           <i class="fa-solid fa-trash"></i> 清空模板
         </button>
       </div>`;
@@ -1070,8 +1070,8 @@ async function renderStorageTab(container) {
         </div>
         <div style="font-size:.8em;color:#888;margin-bottom:12px">设置为 0 可关闭签到奖励</div>
         <div style="display:flex;gap:10px;justify-content:center">
-          <button id="stc-stor-reload" class="menu_button" style="padding:8px 20px;font-size:.85em;white-space:nowrap"><i class="fa-solid fa-rotate-right"></i> 加载配置</button>
-          <button id="stc-stor-save" class="menu_button" style="padding:8px 20px;background:#27ae60;font-size:.85em;white-space:nowrap"><i class="fa-solid fa-save"></i> 保存</button>
+          <button id="stc-stor-reload" class="menu_button" style="padding:8px 20px;font-size:.85em;white-space:nowrap;color:#fff"><i class="fa-solid fa-rotate-right"></i> 加载配置</button>
+          <button id="stc-stor-save" class="menu_button" style="padding:8px 20px;background:#27ae60;font-size:.85em;white-space:nowrap;color:#fff"><i class="fa-solid fa-save"></i> 保存</button>
         </div>
         <div style="font-size:.75em;color:#888;margin-top:8px">保存后建议重启服务以确保配置生效。</div>
       </div>
@@ -1087,7 +1087,7 @@ async function renderStorageTab(container) {
             <div style="font-size:.8em;color:#888;margin-bottom:4px">扩容大小 (MiB):</div>
             <input id="stc-stor-code-size" type="number" min="1" value="100" style="padding:7px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;width:100px">
           </div>
-          <button id="stc-stor-gen-codes" class="menu_button" style="padding:8px 20px;font-size:.85em;white-space:nowrap;align-self:flex-end"><i class="fa-solid fa-plus"></i> 生成激活码</button>
+          <button id="stc-stor-gen-codes" class="menu_button" style="padding:8px 20px;font-size:.85em;white-space:nowrap;align-self:flex-end;color:#fff"><i class="fa-solid fa-plus"></i> 生成激活码</button>
         </div>
         <div id="stc-stor-codes-result" style="margin-top:10px;font-family:monospace;font-size:.85em;color:#aaa;white-space:pre-wrap;background:rgba(0,0,0,.2);border-radius:6px;padding:10px;display:none"></div>
       </div>
@@ -1149,7 +1149,7 @@ async function renderUsersTab(container) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <h3 style="margin:0">用户存储占用分析</h3>
         <button id="stc-ua-refresh" class="menu_button"
-          style="height:36px;padding:0 18px;font-size:.85em;white-space:nowrap;display:flex;align-items:center;gap:6px;box-sizing:border-box">
+          style="height:36px;padding:0 18px;font-size:.85em;white-space:nowrap;display:flex;align-items:center;gap:6px;box-sizing:border-box;color:#fff">
           <i class="fa-solid fa-rotate-right"></i> 刷新分析</button>
       </div>
       <div id="stc-ua-list" style="margin-bottom:28px">
@@ -1196,11 +1196,11 @@ async function renderUsersTab(container) {
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-          <button id="stc-inactive-preview" class="menu_button" style="padding:9px 18px;font-size:.85em;white-space:nowrap;flex:1 1 auto;min-width:120px;max-width:200px">
+          <button id="stc-inactive-preview" class="menu_button" style="padding:9px 18px;font-size:.85em;white-space:nowrap;flex:1 1 auto;min-width:120px;max-width:200px;color:#fff">
             <i class="fa-solid fa-magnifying-glass"></i> 预览候选名单</button>
-          <button id="stc-inactive-warn" class="menu_button" style="padding:9px 18px;font-size:.85em;white-space:nowrap;flex:1 1 auto;min-width:160px;max-width:240px">
+          <button id="stc-inactive-warn" class="menu_button" style="padding:9px 18px;font-size:.85em;white-space:nowrap;flex:1 1 auto;min-width:160px;max-width:240px;color:#fff">
             <i class="fa-solid fa-envelope-open-text"></i> 仅发送提醒邮件</button>
-          <button id="stc-inactive-delete" class="menu_button" style="padding:9px 18px;font-size:.85em;background:#c0392b;white-space:nowrap;flex:1 1 auto;min-width:100px;max-width:160px">
+          <button id="stc-inactive-delete" class="menu_button" style="padding:9px 18px;font-size:.85em;background:#c0392b;white-space:nowrap;flex:1 1 auto;min-width:100px;max-width:160px;color:#fff">
             <i class="fa-solid fa-trash-can"></i> 确认删除</button>
         </div>
 
@@ -1295,12 +1295,12 @@ function renderStorageAnalysis(result, sortBy = 'name') {
             <input id="stc-storage-search" type="text" placeholder="搜索用户名..."
                 value="${esc(storageSearchTerm)}"
                 style="flex:1;min-width:160px;padding:6px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em">
-            <button id="stc-storage-search-btn" class="menu_button" style="padding:6px 16px;font-size:.85em;white-space:nowrap">
+            <button id="stc-storage-search-btn" class="menu_button" style="padding:6px 16px;font-size:.85em;white-space:nowrap;color:#fff">
                 <i class="fa-solid fa-magnifying-glass"></i> 搜索</button>
-            ${storageSearchTerm ? `<button id="stc-storage-clear-btn" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap">
+            ${storageSearchTerm ? `<button id="stc-storage-clear-btn" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap;color:#fff">
                 <i class="fa-solid fa-xmark"></i> 清除</button>` : ''}
             <button id="stc-storage-sort-btn" class="menu_button" data-sort="${sortBy}"
-                style="padding:6px 14px;font-size:.85em;white-space:nowrap;background:${sortBy === 'storage' ? '#4a90e2' : ''}">
+                style="padding:6px 14px;font-size:.85em;white-space:nowrap;background:${sortBy === 'storage' ? '#4a90e2' : ''};color:#fff">
                 <i class="fa-solid ${sortIcon}"></i> ${sortLabel}</button>
         </div>
         <!-- Summary -->
@@ -1514,11 +1514,11 @@ async function renderTasksTab(container) {
               <select id="stc-task-user" style="padding:7px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;min-width:160px">
                 <option value="">所有用户</option>
               </select>
-              <button id="stc-task-reload-users" class="menu_button" style="padding:7px 10px;font-size:.8em" title="刷新用户列表">
+              <button id="stc-task-reload-users" class="menu_button" style="padding:7px 10px;font-size:.8em;color:#fff" title="刷新用户列表">
                 <i class="fa-solid fa-rotate-right"></i></button>
             </div>
           </div>
-          <button id="stc-task-clean-now" class="menu_button" style="padding:8px 20px;background:#e67e22;font-size:.88em;white-space:nowrap">
+          <button id="stc-task-clean-now" class="menu_button" style="padding:8px 20px;background:#e67e22;font-size:.88em;white-space:nowrap;color:#fff">
             <i class="fa-solid fa-broom"></i> 立即清理</button>
         </div>
         <div id="stc-task-clean-result" style="margin-top:12px;display:none"></div>
@@ -1575,7 +1575,7 @@ async function loadTaskConfig() {
             上次运行: <span style="color:#aaa">${lastRun}</span>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
-            <button id="stc-sched-save" class="menu_button" style="padding:8px 20px;background:#27ae60;font-size:.88em;white-space:nowrap">
+            <button id="stc-sched-save" class="menu_button" style="padding:8px 20px;background:#27ae60;font-size:.88em;white-space:nowrap;color:#fff">
               <i class="fa-solid fa-save"></i> 保存配置</button>
             <span style="font-size:.8em;color:#888">保存后立即生效，无需重启服务</span>
           </div>`;

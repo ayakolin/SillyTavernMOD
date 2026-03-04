@@ -334,7 +334,7 @@ oauth:
     enabled: false
     clientId: ''
     clientSecret: ''
-    callbackUrl: 'http://127.0.0.1:8000/api/stc/oauth/github/callback
+    callbackUrl: 'http://127.0.0.1:8000/api/stc/oauth/github/callback'
   discord:
     enabled: false
     clientId: ''
@@ -358,6 +358,6 @@ email:
   fromName: 'SillyTavern'
 
 userStorage:
-  enabled: false
+  enabled: true
   defaultLimitMiB: 500
   dailyCheckInMiB: 0
