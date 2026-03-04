@@ -880,9 +880,9 @@ async function renderOAuthTab(container) {
           <div style="color:#4a90e2;font-weight:600;margin-bottom:4px"><i class="fa-solid fa-circle-info"></i> 回调地址配置说明</div>
           <div style="line-height:1.6">
             在 ${label} 开发者平台创建应用时，需要填写回调地址（Redirect URI / Callback URL）：<br>
-            <code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px;color:#8ab4f8;font-size:.95em;display:inline-block;margin:4px 0">${callbackExample}</code><br>
-            <button class="stc-copy-callback menu_button" data-url="${callbackExample}" style="padding:4px 10px;font-size:.85em;margin-top:4px">
-              <i class="fa-solid fa-copy"></i> 复制回调地址
+            <code class="stc-callback-url" style="background:rgba(0,0,0,.3);padding:4px 8px;border-radius:3px;color:#8ab4f8;font-size:.9em;display:block;margin:6px 0;word-break:break-all;overflow-wrap:break-word">${callbackExample}</code>
+            <button class="stc-copy-callback menu_button" data-url="${callbackExample}" style="padding:6px 12px;font-size:.85em;margin-top:4px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+              <i class="fa-solid fa-copy"></i> <span>复制回调地址</span>
             </button>
           </div>
         </div>
@@ -908,6 +908,15 @@ async function renderOAuthTab(container) {
         .stc-form-row { display:flex;align-items:center;gap:10px;margin-bottom:10px }
         .stc-form-row label { width:120px;font-size:.85em;color:#aaa;flex-shrink:0 }
         .stc-form-row input { flex:1;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.9em }
+
+        /* Mobile responsive styles */
+        @media (max-width: 600px) {
+          .stc-form-row { flex-direction:column;align-items:stretch;gap:6px }
+          .stc-form-row label { width:100%;font-size:.8em }
+          .stc-form-row input { width:100%;font-size:.85em }
+          .stc-callback-url { font-size:.8em !important;padding:6px !important }
+          .stc-copy-callback { width:100%;justify-content:center;font-size:.8em !important }
+        }
       </style>`;
 
     container.querySelectorAll('.stc-oauth-save').forEach(btn => {

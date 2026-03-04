@@ -334,17 +334,17 @@ oauth:
     enabled: false
     clientId: ''
     clientSecret: ''
-    callbackUrl: 'http://localhost:8000/api/oauth/github/callback'
+    callbackUrl: 'http://127.0.0.1:8000/api/stc/oauth/github/callback
   discord:
     enabled: false
     clientId: ''
     clientSecret: ''
-    callbackUrl: 'http://localhost:8000/api/oauth/discord/callback'
+    callbackUrl: 'http://127.0.0.1:8000/api/stc/oauth/discord/callback'
   linuxdo:
     enabled: false
     clientId: ''
     clientSecret: ''
-    callbackUrl: 'http://localhost:8000/api/oauth/linuxdo/callback'
+    callbackUrl: 'http://127.0.0.1:8000/api/stc/oauth/linuxdo/callback'
 
 email:
   enabled: false

@@ -1179,18 +1179,19 @@ function makeDraggable(el, storageKey, defaultPos, onClick) {
 
 function injectAdminButton() {
     if (document.getElementById('stc-admin-btn')) return;
+
+    // Hide admin button on mobile - use nav link instead
+    const isMobile = isMobileViewport();
+    if (isMobile) return;
+
     const btn = document.createElement('div');
     btn.id = 'stc-admin-btn';
     btn.innerHTML = '<i class="fa-solid fa-screwdriver-wrench"></i>';
     btn.title = 'STC 管理面板（可拖动）';
-    // Mobile: avoid stale desktop coordinates and keep it above chat input area.
-    const isMobile = isMobileViewport();
-    if (isMobile) {
-        try { localStorage.removeItem('stc_admin_btn_pos'); } catch { /**/ }
-    }
+
     btn.style.cssText = [
         'position:fixed',
-        `bottom:${isMobile ? '92px' : '55px'}`,
+        'bottom:55px',
         'right:10px',
         'width:42px',
         'height:42px',
@@ -1207,17 +1208,9 @@ function injectAdminButton() {
         'z-index:2147483647',
         'pointer-events:auto',
     ].join(';');
-    if (isMobile) {
-        btn.style.position = 'absolute';
-        btn.style.bottom = '92px';
-        btn.style.right = '10px';
-        btn.style.zIndex = '99999';
-        getStcHost().appendChild(btn);
-        btn.addEventListener('click', openAdminPanel);
-    } else {
-        getStcHost().appendChild(btn);
-        makeDraggable(btn, 'stc_admin_btn_pos', { bottom: '55px', right: '10px' }, openAdminPanel);
-    }
+
+    getStcHost().appendChild(btn);
+    makeDraggable(btn, 'stc_admin_btn_pos', { bottom: '55px', right: '10px' }, openAdminPanel);
 }
 
 function injectAdminNavLink() {
