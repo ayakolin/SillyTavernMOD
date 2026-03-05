@@ -1315,6 +1315,9 @@ async function deleteSingleUser(handle) {
     }
 }
 
+// Cache for all storage data when sorting by activity
+let _allStorageData = null;
+
 async function loadStorageAnalysis(page, sortBy = 'name') {
     if (page !== undefined) currentStoragePage = page;
     const container = document.getElementById('stc-ua-list');
@@ -1335,17 +1338,32 @@ async function loadStorageAnalysis(page, sortBy = 'name') {
             });
         }
 
-        const params = new URLSearchParams({
-            page:  currentStoragePage,
-            limit: STORAGE_PER_PAGE,
-        });
-        if (storageSearchTerm) params.set('search', storageSearchTerm);
-        if (sortBy) params.set('sortBy', sortBy);
-        const r = await fetch(`/api/stc/scheduled-tasks/storage-analysis?${params}`, { headers: getHeaders() });
-        if (!r.ok) throw new Error(await r.text());
-        const result = await r.json();
-        _storageAnalysisCache = result;
-        renderStorageAnalysis(result, sortBy);
+        // For activity sorting, we need all data to sort globally
+        if (sortBy === 'activity') {
+            // Load all data without pagination
+            const params = new URLSearchParams({ page: 1, limit: 9999 });
+            if (storageSearchTerm) params.set('search', storageSearchTerm);
+            params.set('sortBy', 'name'); // Get data sorted by name first
+            const r = await fetch(`/api/stc/scheduled-tasks/storage-analysis?${params}`, { headers: getHeaders() });
+            if (!r.ok) throw new Error(await r.text());
+            const result = await r.json();
+            _allStorageData = result.data || result;
+            renderStorageAnalysis({ data: _allStorageData, total: _allStorageData.length }, sortBy);
+        } else {
+            // Normal backend pagination for name/storage sorting
+            const params = new URLSearchParams({
+                page:  currentStoragePage,
+                limit: STORAGE_PER_PAGE,
+            });
+            if (storageSearchTerm) params.set('search', storageSearchTerm);
+            if (sortBy) params.set('sortBy', sortBy);
+            const r = await fetch(`/api/stc/scheduled-tasks/storage-analysis?${params}`, { headers: getHeaders() });
+            if (!r.ok) throw new Error(await r.text());
+            const result = await r.json();
+            _storageAnalysisCache = result;
+            _allStorageData = null; // Clear cache when not sorting by activity
+            renderStorageAnalysis(result, sortBy);
+        }
     } catch (e) {
         container.innerHTML = `<div style="color:#e74c3c;text-align:center;padding:20px">加载失败: ${esc(e.message)}</div>`;
     }
@@ -1356,28 +1374,46 @@ function renderStorageAnalysis(result, sortBy = 'name') {
     if (!container) return;
 
     // Support both old array format and new paginated object format
-    let data       = Array.isArray(result) ? result : (result.data || []);
-    const total      = Array.isArray(result) ? data.length : (result.total || data.length);
-    const totalPages = Array.isArray(result) ? 1 : (result.totalPages || 1);
-    const curPage    = Array.isArray(result) ? 1 : (result.page || 1);
+    let allData = Array.isArray(result) ? result : (result.data || []);
+    let total = Array.isArray(result) ? allData.length : (result.total || allData.length);
 
-    if (!data.length && curPage === 1) {
+    if (!allData.length) {
         container.innerHTML = emptyState('fa-users', '暂无数据', '没有找到用户数据');
         return;
     }
 
     // Client-side sorting for activity (backend doesn't support it)
     if (sortBy === 'activity') {
-        data = [...data].sort((a, b) => {
+        allData = [...allData].sort((a, b) => {
             const aM = _userMetaMap[a.handle] || {};
             const bM = _userMetaMap[b.handle] || {};
             const aTime = aM.lastChatTime || aM.lastLoginAt || aM.createdAt || 0;
             const bTime = bM.lastChatTime || bM.lastLoginAt || bM.createdAt || 0;
             return bTime - aTime; // Most recent first
         });
-    }
 
-    const pageMiB = data.reduce((s, u) => s + u.totalMiB, 0).toFixed(2);
+        // Client-side pagination for activity sorting
+        total = allData.length;
+        const totalPages = Math.ceil(total / STORAGE_PER_PAGE);
+        if (currentStoragePage > totalPages) currentStoragePage = totalPages || 1;
+        const start = (currentStoragePage - 1) * STORAGE_PER_PAGE;
+        const data = allData.slice(start, start + STORAGE_PER_PAGE);
+
+        const pageMiB = data.reduce((s, u) => s + u.totalMiB, 0).toFixed(2);
+        renderStorageTable(data, total, totalPages, currentStoragePage, pageMiB, sortBy);
+    } else {
+        // Backend pagination
+        const data = allData;
+        const totalPages = Array.isArray(result) ? 1 : (result.totalPages || 1);
+        const curPage = Array.isArray(result) ? 1 : (result.page || 1);
+        const pageMiB = data.reduce((s, u) => s + u.totalMiB, 0).toFixed(2);
+        renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy);
+    }
+}
+
+function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
+    const container = document.getElementById('stc-ua-list');
+    if (!container) return;
 
     // Helper function to format relative time
     const formatRelativeTime = (timestamp) => {
@@ -1452,7 +1488,7 @@ function renderStorageAnalysis(result, sortBy = 'name') {
             ${storageSearchTerm ? `<button id="stc-storage-clear-btn" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap;color:#fff">
                 <i class="fa-solid fa-xmark"></i> 清除</button>` : ''}
             <button id="stc-storage-sort-btn" class="menu_button" data-sort="${sortBy}"
-                style="padding:6px 14px;font-size:.85em;white-space:nowrap;background:${sortBy === 'storage' ? '#4a90e2' : ''};color:#fff">
+                style="padding:6px 14px;font-size:.85em;white-space:nowrap;background:${sortBy !== 'name' ? '#4a90e2' : ''};color:#fff">
                 <i class="fa-solid ${sortIcon}"></i> ${sortLabel}</button>
         </div>
         <!-- Summary -->
