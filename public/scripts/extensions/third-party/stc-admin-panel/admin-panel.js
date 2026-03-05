@@ -364,21 +364,53 @@ function renderUserList() {
     const start = (currentUserPage - 1) * USERS_PER_PAGE;
     const page = filtered.slice(start, start + USERS_PER_PAGE);
 
+    // Helper function to format relative time
+    const formatRelativeTime = (timestamp) => {
+        if (!timestamp) return '从未';
+        const now = Date.now();
+        const diff = now - timestamp;
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+
+        if (days > 0) return `${days}天前`;
+        if (hours > 0) return `${hours}小时前`;
+        if (mins > 0) return `${mins}分钟前`;
+        return '刚刚';
+    };
+
     container.innerHTML = `
-        <div style="color:#888;font-size:.8em;margin-bottom:8px">显示 ${start + 1}-${Math.min(start + USERS_PER_PAGE, filtered.length)} / ${filtered.length} 用户</div>
+        <div style="color:#888;font-size:.8em;margin-bottom:8px">显示 ${start + 1}-${Math.min(start + USERS_PER_PAGE, filtered.length)} / ${filtered.length} 用户 · 按最后活跃时间排序</div>
         ${createPagination(currentUserPage, total)}
-        ${page.map(u => `
+        ${page.map(u => {
+            const lastActivity = u.lastChatTime || u.lastLoginAt || u.createdAt || 0;
+            const activityText = formatRelativeTime(lastActivity);
+            const activityColor = (() => {
+                const days = (Date.now() - lastActivity) / 86400000;
+                if (days < 1) return '#27ae60';
+                if (days < 7) return '#f39c12';
+                if (days < 30) return '#e67e22';
+                return '#e74c3c';
+            })();
+
+            return `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:8px">
-            <div>
-                <div style="font-weight:600">${esc(u.handle)}</div>
-                <div style="font-size:.8em;color:#888">
-                    ${u.expired ? '<span style="color:#e74c3c">已过期</span>' : '<span style="color:#27ae60">正常</span>'}
-                    ${u.expiresAt ? ` · 到期: ${new Date(u.expiresAt).toLocaleDateString('zh-CN')}` : ''}
-                    ${u.email ? ` · ${esc(u.email)}` : ''}
-                    ${u.lastLoginAt ? ` · 最后登录: ${new Date(u.lastLoginAt).toLocaleString('zh-CN')}` : ''}
+            <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                    <span style="font-weight:600">${esc(u.handle)}</span>
+                    ${u.expired ? '<span style="color:#e74c3c;font-size:.75em;padding:2px 6px;background:rgba(231,76,60,.2);border-radius:4px">已过期</span>' : '<span style="color:#27ae60;font-size:.75em;padding:2px 6px;background:rgba(39,174,96,.2);border-radius:4px">正常</span>'}
+                </div>
+                <div style="font-size:.75em;color:#888;line-height:1.6">
+                    <div style="display:flex;flex-wrap:wrap;gap:8px">
+                        <span style="color:${activityColor}"><i class="fa-solid fa-clock"></i> 最后活跃: ${activityText}</span>
+                        ${u.lastChatTime ? `<span style="color:#8ab4f8"><i class="fa-solid fa-message"></i> 最后对话: ${formatRelativeTime(u.lastChatTime)}</span>` : ''}
+                        ${u.expiresAt ? `<span><i class="fa-solid fa-calendar"></i> 到期: ${new Date(u.expiresAt).toLocaleDateString('zh-CN')}</span>` : ''}
+                    </div>
+                    ${u.email ? `<div style="margin-top:2px"><i class="fa-solid fa-envelope"></i> ${esc(u.email)}</div>` : ''}
                 </div>
             </div>
-        </div>`).join('')}
+        </div>`;
+        }).join('')}
         ${createPagination(currentUserPage, total)}`;
 
     container.querySelectorAll('.stc-page-btn').forEach(b => {

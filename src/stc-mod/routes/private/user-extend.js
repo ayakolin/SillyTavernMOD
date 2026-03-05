@@ -4,6 +4,8 @@
  */
 import express from 'express';
 import { promises as fsPromises } from 'fs';
+import fs from 'fs';
+import path from 'path';
 import storage from 'node-persist';
 import { getUserMeta, setUserMeta, getAllUserMeta, isUserExpired, deleteUserMeta } from '../../user-metadata.js';
 import * as invitationService from '../../services/invitation-codes.js';
@@ -98,16 +100,67 @@ router.get('/all-meta', requireAdminMiddleware, (req, res) => {
     res.json(getAllUserMeta());
 });
 
+/**
+ * Get the last chat time for a user by scanning their chats directory
+ * @param {string} handle - User handle
+ * @returns {number|null} - Timestamp of last chat modification, or null if no chats
+ */
+function getLastChatTime(handle) {
+    try {
+        const dirs = getUserDirectories(handle);
+        const chatsDir = dirs.chats;
+
+        if (!fs.existsSync(chatsDir)) {
+            return null;
+        }
+
+        const files = fs.readdirSync(chatsDir);
+        if (files.length === 0) {
+            return null;
+        }
+
+        let lastTime = 0;
+        for (const file of files) {
+            const filePath = path.join(chatsDir, file);
+            try {
+                const stats = fs.statSync(filePath);
+                if (stats.isFile() && stats.mtimeMs > lastTime) {
+                    lastTime = stats.mtimeMs;
+                }
+            } catch (e) {
+                // Skip files that can't be read
+                continue;
+            }
+        }
+
+        return lastTime > 0 ? Math.floor(lastTime) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Admin: get users with expiration info
 router.get('/expiration-list', requireAdminMiddleware, async (req, res) => {
     try {
         const allMeta = getAllUserMeta();
         const handles = await getAllUserHandles();
-        const result = handles.map(h => ({
-            handle: h,
-            expired: isUserExpired(h),
-            ...(allMeta[h] || {}),
-        }));
+        const result = handles.map(h => {
+            const lastChatTime = getLastChatTime(h);
+            return {
+                handle: h,
+                expired: isUserExpired(h),
+                lastChatTime,
+                ...(allMeta[h] || {}),
+            };
+        });
+
+        // Sort by lastChatTime (most recent first), then by lastLoginAt
+        result.sort((a, b) => {
+            const aTime = a.lastChatTime || a.lastLoginAt || a.createdAt || 0;
+            const bTime = b.lastChatTime || b.lastLoginAt || b.createdAt || 0;
+            return bTime - aTime;
+        });
+
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
