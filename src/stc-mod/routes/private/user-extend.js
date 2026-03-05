@@ -305,3 +305,64 @@ router.post('/warn-inactive', requireAdminMiddleware, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Admin: reset single user (delete all data but keep account)
+router.post('/reset-user', requireAdminMiddleware, async (req, res) => {
+    try {
+        const { handle } = req.body;
+        if (!handle) return res.status(400).json({ error: '缺少用户名' });
+        if (handle === 'default-user') return res.status(400).json({ error: '不能重置默认用户' });
+
+        const dirs = getUserDirectories(handle);
+
+        // Delete all subdirectories but keep the root
+        const subDirs = ['chats', 'characters', 'groups', 'worlds', 'avatars', 'backgrounds', 'assets', 'backups', 'instruct', 'context'];
+        for (const subDir of subDirs) {
+            const dirPath = dirs[subDir];
+            if (dirPath) {
+                try {
+                    await fsPromises.rm(dirPath, { recursive: true, force: true });
+                    // Recreate empty directory
+                    await fsPromises.mkdir(dirPath, { recursive: true });
+                } catch (e) {
+                    // Ignore if directory doesn't exist
+                }
+            }
+        }
+
+        // Delete settings file
+        const settingsPath = path.join(dirs.root, 'settings.json');
+        try {
+            await fsPromises.unlink(settingsPath);
+        } catch (e) {
+            // Ignore if file doesn't exist
+        }
+
+        res.json({ success: true, message: `用户 ${handle} 已重置` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Admin: delete single user completely
+router.post('/delete-single', requireAdminMiddleware, async (req, res) => {
+    try {
+        const { handle } = req.body;
+        if (!handle) return res.status(400).json({ error: '缺少用户名' });
+        if (handle === 'default-user') return res.status(400).json({ error: '不能删除默认用户' });
+
+        // 1. Remove from SillyTavern user registry
+        await storage.removeItem(toKey(handle));
+
+        // 2. Delete user data directory
+        const dirs = getUserDirectories(handle);
+        await fsPromises.rm(dirs.root, { recursive: true, force: true });
+
+        // 3. Remove STC extended metadata
+        deleteUserMeta(handle);
+
+        res.json({ success: true, message: `用户 ${handle} 已删除` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
