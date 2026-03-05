@@ -1175,38 +1175,19 @@ async function renderStorageTab(container) {
 // ═══════════════════════════════════════════════════
 // TAB: 用户管理（存储分析 + 删除不活跃用户）
 // ═══════════════════════════════════════════════════
-// TAB: 用户管理（用户列表 + 存储分析 + 删除不活跃用户）
+// TAB: 用户管理（存储分析 + 删除不活跃用户）
 // ═══════════════════════════════════════════════════
 async function renderUsersTab(container) {
     container.innerHTML = `
-      <!-- Section: User List -->
-      <div style="margin-bottom:28px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <h3 style="margin:0">用户列表</h3>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input id="stc-user-list-search" type="text" placeholder="搜索用户..." style="padding:6px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em;width:160px">
-            <button id="stc-user-list-sort" class="menu_button" data-sort="activity" style="padding:6px 14px;font-size:.85em;white-space:nowrap;color:#fff">
-              <i class="fa-solid fa-clock"></i> 按活跃时间</button>
-            <button id="stc-user-list-refresh" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap;color:#fff">
-              <i class="fa-solid fa-rotate-right"></i> 刷新</button>
-          </div>
-        </div>
-        <div id="stc-user-list-container">
-          <div style="text-align:center;padding:24px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>
-        </div>
-      </div>
-
       <!-- Section: Storage Analysis -->
-      <div style="border-top:1px solid #2a3a5e;padding-top:20px;margin-bottom:28px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <h3 style="margin:0">用户存储占用分析</h3>
-          <button id="stc-ua-refresh" class="menu_button"
-            style="height:36px;padding:0 18px;font-size:.85em;white-space:nowrap;display:flex;align-items:center;gap:6px;box-sizing:border-box;color:#fff">
-            <i class="fa-solid fa-rotate-right"></i> 刷新分析</button>
-        </div>
-        <div id="stc-ua-list">
-          <div style="text-align:center;padding:24px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>
-        </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h3 style="margin:0">用户存储占用分析</h3>
+        <button id="stc-ua-refresh" class="menu_button"
+          style="height:36px;padding:0 18px;font-size:.85em;white-space:nowrap;display:flex;align-items:center;gap:6px;box-sizing:border-box;color:#fff">
+          <i class="fa-solid fa-rotate-right"></i> 刷新分析</button>
+      </div>
+      <div id="stc-ua-list" style="margin-bottom:28px">
+        <div style="text-align:center;padding:24px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>
       </div>
 
       <!-- Section: Delete Inactive Users -->
@@ -1260,23 +1241,6 @@ async function renderUsersTab(container) {
         <div id="stc-inactive-preview-result" style="margin-top:14px;display:none"></div>
       </div>`;
 
-    // User list handlers
-    document.getElementById('stc-user-list-refresh')?.addEventListener('click', loadUserList);
-    document.getElementById('stc-user-list-search')?.addEventListener('input', (e) => {
-        _userListSearchTerm = e.target.value.trim();
-        renderUserListTable();
-    });
-    document.getElementById('stc-user-list-sort')?.addEventListener('click', (e) => {
-        const btn = e.currentTarget;
-        const currentSort = btn.dataset.sort;
-        const newSort = currentSort === 'activity' ? 'name' : 'activity';
-        btn.dataset.sort = newSort;
-        btn.innerHTML = newSort === 'activity'
-            ? '<i class="fa-solid fa-clock"></i> 按活跃时间'
-            : '<i class="fa-solid fa-arrow-down-a-z"></i> 按用户名';
-        renderUserListTable();
-    });
-
     document.getElementById('stc-ua-refresh')?.addEventListener('click', () => {
         currentStoragePage = 1;
         storageSearchTerm = '';
@@ -1290,128 +1254,12 @@ async function renderUsersTab(container) {
     document.getElementById('stc-inactive-warn')?.addEventListener('click', warnInactiveUsers);
     document.getElementById('stc-inactive-delete')?.addEventListener('click', deleteInactiveUsers);
 
-    await loadUserList();
     currentStoragePage = 1;
     await loadStorageAnalysis(1);
 }
 
-let _userListData = [];
-let _userListSearchTerm = '';
-
-async function loadUserList() {
-    const container = document.getElementById('stc-user-list-container');
-    if (!container) return;
-    container.innerHTML = `<div style="text-align:center;padding:24px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>`;
-    try {
-        const r = await fetch('/api/stc/users/expiration-list', { headers: getHeaders() });
-        if (!r.ok) throw new Error(await r.text());
-        _userListData = await r.json();
-        renderUserListTable();
-    } catch (e) {
-        container.innerHTML = `<div style="color:#e74c3c;text-align:center;padding:20px">加载失败: ${esc(e.message)}</div>`;
-    }
-}
-
-function renderUserListTable() {
-    const container = document.getElementById('stc-user-list-container');
-    if (!container) return;
-
-    const sortBtn = document.getElementById('stc-user-list-sort');
-    const sortBy = sortBtn?.dataset.sort || 'activity';
-
-    let filtered = _userListData;
-    if (_userListSearchTerm) {
-        filtered = filtered.filter(u =>
-            u.handle?.toLowerCase().includes(_userListSearchTerm.toLowerCase()) ||
-            u.email?.toLowerCase().includes(_userListSearchTerm.toLowerCase())
-        );
-    }
-
-    // Sort
-    if (sortBy === 'name') {
-        filtered.sort((a, b) => (a.handle || '').localeCompare(b.handle || ''));
-    } else {
-        // Already sorted by activity from backend
-    }
-
-    if (!filtered.length) {
-        container.innerHTML = emptyState('fa-users', '暂无用户', _userListSearchTerm ? '没有找到匹配的用户' : '没有用户数据');
-        return;
-    }
-
-    const formatRelativeTime = (timestamp) => {
-        if (!timestamp) return '从未';
-        const now = Date.now();
-        const diff = now - timestamp;
-        const days = Math.floor(diff / 86400000);
-        const hours = Math.floor((diff % 86400000) / 3600000);
-        const mins = Math.floor((diff % 3600000) / 60000);
-
-        if (days > 0) return `${days}天前`;
-        if (hours > 0) return `${hours}小时前`;
-        if (mins > 0) return `${mins}分钟前`;
-        return '刚刚';
-    };
-
-    const rows = filtered.map(u => {
-        const lastActivity = u.lastChatTime || u.lastLoginAt || u.createdAt || 0;
-        const activityText = formatRelativeTime(lastActivity);
-        const activityColor = (() => {
-            const days = (Date.now() - lastActivity) / 86400000;
-            if (days < 1) return '#27ae60';
-            if (days < 7) return '#f39c12';
-            if (days < 30) return '#e67e22';
-            return '#e74c3c';
-        })();
-
-        return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
-            <td style="padding:10px 12px">
-                <div style="font-weight:600;margin-bottom:2px">${esc(u.handle)}</div>
-                ${u.email ? `<div style="font-size:.75em;color:#888">${esc(u.email)}</div>` : ''}
-            </td>
-            <td style="padding:10px 12px;text-align:center">
-                ${u.expired ? '<span style="color:#e74c3c;font-size:.8em;padding:3px 8px;background:rgba(231,76,60,.2);border-radius:4px">已过期</span>' : '<span style="color:#27ae60;font-size:.8em;padding:3px 8px;background:rgba(39,174,96,.2);border-radius:4px">正常</span>'}
-            </td>
-            <td style="padding:10px 12px;text-align:center;color:${activityColor};font-size:.85em">
-                ${activityText}
-            </td>
-            <td style="padding:10px 12px;text-align:center;white-space:nowrap">
-                <button class="stc-user-reset menu_button" data-handle="${esc(u.handle)}"
-                    style="padding:4px 10px;font-size:.8em;margin-right:4px;color:#fff" title="重置用户数据">
-                    <i class="fa-solid fa-rotate-left"></i> 重置</button>
-                <button class="stc-user-delete menu_button" data-handle="${esc(u.handle)}"
-                    style="padding:4px 10px;font-size:.8em;background:#c0392b;color:#fff" title="删除用户">
-                    <i class="fa-solid fa-trash"></i> 删除</button>
-            </td>
-        </tr>`;
-    }).join('');
-
-    container.innerHTML = `
-        <div style="color:#888;font-size:.8em;margin-bottom:8px">
-            共 ${filtered.length} 个用户${_userListSearchTerm ? ` （搜索"${esc(_userListSearchTerm)}"）` : ''}
-        </div>
-        <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:.85em">
-                <thead>
-                    <tr style="color:#888;border-bottom:1px solid #2a3a5e">
-                        <th style="padding:10px 12px;text-align:left">用户</th>
-                        <th style="padding:10px 12px;text-align:center">状态</th>
-                        <th style="padding:10px 12px;text-align:center">最后活跃</th>
-                        <th style="padding:10px 12px;text-align:center">操作</th>
-                    </tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
-        </div>`;
-
-    // Attach event handlers
-    container.querySelectorAll('.stc-user-reset').forEach(btn => {
-        btn.addEventListener('click', () => resetUser(btn.dataset.handle));
-    });
-    container.querySelectorAll('.stc-user-delete').forEach(btn => {
-        btn.addEventListener('click', () => deleteSingleUser(btn.dataset.handle));
-    });
-}
+// Store user metadata for activity time display
+let _userMetaMap = {};
 
 async function resetUser(handle) {
     if (!confirm(`确定要重置用户 "${handle}" 的所有数据吗？\n\n此操作将删除该用户的：\n- 所有聊天记录\n- 所有角色卡\n- 所有世界书\n- 所有备份文件\n- 所有设置\n\n用户账号将保留，但数据将被清空。`)) {
@@ -1431,7 +1279,7 @@ async function resetUser(handle) {
         }
 
         toast(`用户 "${handle}" 已重置`);
-        await loadUserList();
+        await loadStorageAnalysis(currentStoragePage);
     } catch (e) {
         toast('重置失败: ' + e.message, true);
     }
@@ -1461,7 +1309,7 @@ async function deleteSingleUser(handle) {
         }
 
         toast(`用户 "${handle}" 已删除`);
-        await loadUserList();
+        await loadStorageAnalysis(currentStoragePage);
     } catch (e) {
         toast('删除失败: ' + e.message, true);
     }
@@ -1473,6 +1321,20 @@ async function loadStorageAnalysis(page, sortBy = 'name') {
     if (!container) return;
     container.innerHTML = `<div style="text-align:center;padding:24px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 分析中，请稍候（第 ${currentStoragePage} 页）...</div>`;
     try {
+        // Load user metadata for activity times
+        const metaRes = await fetch('/api/stc/users/expiration-list', { headers: getHeaders() });
+        if (metaRes.ok) {
+            const users = await metaRes.json();
+            _userMetaMap = {};
+            users.forEach(u => {
+                _userMetaMap[u.handle] = {
+                    lastChatTime: u.lastChatTime,
+                    lastLoginAt: u.lastLoginAt,
+                    createdAt: u.createdAt
+                };
+            });
+        }
+
         const params = new URLSearchParams({
             page:  currentStoragePage,
             limit: STORAGE_PER_PAGE,
@@ -1494,7 +1356,7 @@ function renderStorageAnalysis(result, sortBy = 'name') {
     if (!container) return;
 
     // Support both old array format and new paginated object format
-    const data       = Array.isArray(result) ? result : (result.data || []);
+    let data       = Array.isArray(result) ? result : (result.data || []);
     const total      = Array.isArray(result) ? data.length : (result.total || data.length);
     const totalPages = Array.isArray(result) ? 1 : (result.totalPages || 1);
     const curPage    = Array.isArray(result) ? 1 : (result.page || 1);
@@ -1504,12 +1366,50 @@ function renderStorageAnalysis(result, sortBy = 'name') {
         return;
     }
 
-    // Backend handles sorting, no need for client-side sorting
+    // Client-side sorting for activity (backend doesn't support it)
+    if (sortBy === 'activity') {
+        data = [...data].sort((a, b) => {
+            const aM = _userMetaMap[a.handle] || {};
+            const bM = _userMetaMap[b.handle] || {};
+            const aTime = aM.lastChatTime || aM.lastLoginAt || aM.createdAt || 0;
+            const bTime = bM.lastChatTime || bM.lastLoginAt || bM.createdAt || 0;
+            return bTime - aTime; // Most recent first
+        });
+    }
+
     const pageMiB = data.reduce((s, u) => s + u.totalMiB, 0).toFixed(2);
+
+    // Helper function to format relative time
+    const formatRelativeTime = (timestamp) => {
+        if (!timestamp) return '从未';
+        const now = Date.now();
+        const diff = now - timestamp;
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+
+        if (days > 0) return `${days}天前`;
+        if (hours > 0) return `${hours}小时前`;
+        if (mins > 0) return `${mins}分钟前`;
+        return '刚刚';
+    };
 
     const rows = data.map(u => {
         const c = u.categories || {};
         const backupMiB = c.backups || 0;
+
+        // Get activity time from metadata
+        const meta = _userMetaMap[u.handle] || {};
+        const lastActivity = meta.lastChatTime || meta.lastLoginAt || meta.createdAt || 0;
+        const activityText = formatRelativeTime(lastActivity);
+        const activityColor = (() => {
+            const days = (Date.now() - lastActivity) / 86400000;
+            if (days < 1) return '#27ae60';
+            if (days < 7) return '#f39c12';
+            if (days < 30) return '#e67e22';
+            return '#e74c3c';
+        })();
+
         return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s"
                     onmouseover="this.style.background='rgba(255,255,255,.04)'"
                     onmouseout="this.style.background=''">
@@ -1521,6 +1421,15 @@ function renderStorageAnalysis(result, sortBy = 'name') {
                 title="${backupMiB > 10 ? '备份文件较多，建议清理' : ''}">${backupMiB}${backupMiB > 10 ? ' ⚠' : ''}</td>
             <td style="padding:8px 10px;text-align:right;color:#aaa">${c.worlds || 0}</td>
             <td style="padding:8px 10px;text-align:right;color:#aaa">${c.other || 0}</td>
+            <td style="padding:8px 10px;text-align:center;color:${activityColor};font-size:.85em">${activityText}</td>
+            <td style="padding:8px 10px;text-align:center;white-space:nowrap">
+                <button class="stc-user-reset menu_button" data-handle="${esc(u.handle)}"
+                    style="padding:3px 8px;font-size:.75em;margin-right:4px;color:#fff" title="重置">
+                    <i class="fa-solid fa-rotate-left"></i></button>
+                <button class="stc-user-delete menu_button" data-handle="${esc(u.handle)}"
+                    style="padding:3px 8px;font-size:.75em;background:#c0392b;color:#fff" title="删除">
+                    <i class="fa-solid fa-trash"></i></button>
+            </td>
         </tr>`;
     }).join('');
 
@@ -1529,8 +1438,8 @@ function renderStorageAnalysis(result, sortBy = 'name') {
     const startIdx = (curPage - 1) * STORAGE_PER_PAGE + 1;
     const endIdx   = Math.min(curPage * STORAGE_PER_PAGE, total);
 
-    const sortLabel = sortBy === 'storage' ? '按占用排序（高→低）' : '按用户名排序';
-    const sortIcon = sortBy === 'storage' ? 'fa-arrow-down-wide-short' : 'fa-arrow-down-a-z';
+    const sortLabel = sortBy === 'storage' ? '按占用排序' : sortBy === 'activity' ? '按活跃时间' : '按用户名';
+    const sortIcon = sortBy === 'storage' ? 'fa-arrow-down-wide-short' : sortBy === 'activity' ? 'fa-clock' : 'fa-arrow-down-a-z';
 
     container.innerHTML = `
         <!-- Search bar -->
@@ -1556,7 +1465,7 @@ function renderStorageAnalysis(result, sortBy = 'name') {
         </div>
         ${pager}
         <div style="overflow-x:auto;margin-top:8px">
-        <table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:520px">
+        <table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:720px">
           <thead>
             <tr style="color:#888;border-bottom:1px solid #2a3a5e">
               <th style="padding:8px 10px;text-align:left">用户</th>
@@ -1566,6 +1475,8 @@ function renderStorageAnalysis(result, sortBy = 'name') {
               <th style="padding:8px 10px;text-align:right">备份文件</th>
               <th style="padding:8px 10px;text-align:right">世界书</th>
               <th style="padding:8px 10px;text-align:right">其他</th>
+              <th style="padding:8px 10px;text-align:center">最后活跃</th>
+              <th style="padding:8px 10px;text-align:center">操作</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1589,7 +1500,11 @@ function renderStorageAnalysis(result, sortBy = 'name') {
 
     // Sort button handler
     container.querySelector('#stc-storage-sort-btn')?.addEventListener('click', () => {
-        const newSort = sortBy === 'storage' ? 'name' : 'storage';
+        // Cycle through: name -> storage -> activity -> name
+        let newSort = 'name';
+        if (sortBy === 'name') newSort = 'storage';
+        else if (sortBy === 'storage') newSort = 'activity';
+        else newSort = 'name';
         currentStoragePage = 1;
         loadStorageAnalysis(1, newSort);
     });
@@ -1597,6 +1512,14 @@ function renderStorageAnalysis(result, sortBy = 'name') {
     // Pagination handlers
     container.querySelectorAll('.stc-storage-page-btn').forEach(b => {
         b.addEventListener('click', () => loadStorageAnalysis(parseInt(b.dataset.page), sortBy));
+    });
+
+    // Action button handlers
+    container.querySelectorAll('.stc-user-reset').forEach(btn => {
+        btn.addEventListener('click', () => resetUser(btn.dataset.handle));
+    });
+    container.querySelectorAll('.stc-user-delete').forEach(btn => {
+        btn.addEventListener('click', () => deleteSingleUser(btn.dataset.handle));
     });
 }
 
