@@ -650,12 +650,13 @@ async function showUserPanel() {
 
 function buildUserPanelContent(purchaseLink = '') {
     const me = userExtInfo;
-    const CARD = 'display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:10px;background:var(--SmartThemeBotMesBlurTintColor,rgba(255,255,255,.04));border:1px solid var(--SmartThemeBorderColor,rgba(255,255,255,.08))';
-    const ROW  = 'display:flex;align-items:center;gap:10px;font-size:.9em';
+    const CARD = 'display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:10px;background:var(--SmartThemeBotMesBlurTintColor,rgba(255,255,255,.04));border:1px solid var(--SmartThemeBorderColor,rgba(255,255,255,.08));max-width:100%;box-sizing:border-box';
+    const ROW  = 'display:flex;align-items:center;gap:10px;font-size:.9em;min-width:0';
     const ICON = 'width:16px;text-align:center;opacity:.6;flex-shrink:0';
 
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'display:flex;flex-direction:column;gap:14px;width:100%;min-width:300px';
+    const isNarrowMobile = window.innerWidth <= 520;
+    wrap.style.cssText = `display:flex;flex-direction:column;gap:14px;width:100%;min-width:${isNarrowMobile ? '0' : '300px'};max-width:100%;box-sizing:border-box;overflow-x:hidden`;
 
     // ━━━━ 1. Header ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const oauthIcons = { github: 'fa-brands fa-github', discord: 'fa-brands fa-discord', linuxdo: 'fa-solid fa-globe' };
@@ -783,11 +784,11 @@ function buildUserPanelContent(purchaseLink = '') {
 
     renewSection.innerHTML = `
         <div style="font-size:.8em;opacity:.55">${renewHint}</div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:${isNarrowMobile ? 'wrap' : 'nowrap'}">
             <input id="stc-renew-code" placeholder="输入激活码" autocomplete="off"
-                style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--SmartThemeBorderColor,#444);
+                style="flex:1;min-width:0;padding:8px 12px;border-radius:6px;border:1px solid var(--SmartThemeBorderColor,#444);
                 background:var(--SmartThemeBlurTintColor,rgba(0,0,0,.3));color:inherit;font-size:.9em">
-            <button id="stc-renew-btn" class="menu_button" style="padding:8px 16px;font-size:.85em;white-space:nowrap">
+            <button id="stc-renew-btn" class="menu_button" style="padding:8px 16px;font-size:.85em;white-space:nowrap;${isNarrowMobile ? 'width:100%' : ''}">
                 <i class="fa-solid fa-rotate-right"></i> 激活</button>
         </div>`;
 
@@ -842,7 +843,7 @@ function buildUserPanelContent(purchaseLink = '') {
         // Check-in row
         if (s.dailyCheckInMiB > 0) {
             const checkinRow = document.createElement('div');
-            checkinRow.style.cssText = 'border-top:1px solid var(--SmartThemeBorderColor,rgba(255,255,255,.08));padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px';
+            checkinRow.style.cssText = `border-top:1px solid var(--SmartThemeBorderColor,rgba(255,255,255,.08));padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:${isNarrowMobile ? 'wrap' : 'nowrap'}`;
             if (alreadyCheckedIn) {
                 checkinRow.innerHTML = `
                     <span style="font-size:.85em;opacity:.55;display:flex;align-items:center;gap:6px">
@@ -866,11 +867,11 @@ function buildUserPanelContent(purchaseLink = '') {
         codeRow.style.cssText = 'border-top:1px solid var(--SmartThemeBorderColor,rgba(255,255,255,.08));padding-top:10px;display:flex;flex-direction:column;gap:8px';
         codeRow.innerHTML = `
             <div style="font-size:.8em;opacity:.6"><i class="fa-solid fa-key"></i> 存储激活码</div>
-            <div style="display:flex;gap:8px">
+            <div style="display:flex;gap:8px;flex-wrap:${isNarrowMobile ? 'wrap' : 'nowrap'}">
                 <input id="stc-storage-code" placeholder="输入激活码" autocomplete="off"
-                    style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--SmartThemeBorderColor,#444);
+                    style="flex:1;min-width:0;padding:8px 12px;border-radius:6px;border:1px solid var(--SmartThemeBorderColor,#444);
                     background:var(--SmartThemeBlurTintColor,rgba(0,0,0,.3));color:inherit;font-size:.9em">
-                <button id="stc-use-code-btn" class="menu_button" style="padding:8px 16px;font-size:.85em;white-space:nowrap">
+                <button id="stc-use-code-btn" class="menu_button" style="padding:8px 16px;font-size:.85em;white-space:nowrap;${isNarrowMobile ? 'width:100%' : ''}">
                     <i class="fa-solid fa-bolt"></i> 激活</button>
             </div>`;
         storageCard.appendChild(codeRow);
