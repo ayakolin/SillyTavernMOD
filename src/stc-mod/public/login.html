@@ -604,52 +604,90 @@
         if (isExpired) {
             const shadowPopup = document.getElementById('shadow_popup');
             if (shadowPopup) shadowPopup.style.opacity = '1';
-            document.getElementById('stc-oauth-section').style.display = 'none';
-            document.getElementById('stc-expired-panel').style.display = '';
-            if (expiredHandle) {
-                document.getElementById('stc-renew-handle').value = expiredHandle;
-                document.getElementById('stc-expired-desc').textContent =
-                    `账号 "${expiredHandle}" 的使用时间已到期，请使用新的激活码续费`;
-            }
-            if (purchaseLink) {
-                const buyBtn = document.getElementById('stc-buy-link');
-                buyBtn.href = purchaseLink; buyBtn.style.display = '';
-            }
-            document.getElementById('stc-renew-submit').addEventListener('click', async function() {
-                const handle = document.getElementById('stc-renew-handle').value.trim();
-                const code   = document.getElementById('stc-renew-code-input').value.trim();
-                const btn    = this;
-                if (!handle) { showMsg('请填写账号用户名', false); return; }
-                if (!code)   { showMsg('请输入激活码', false); return; }
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 续费中...';
-                document.getElementById('stc-renew-msg').style.display = 'none';
-                try {
-                    const r = await fetch('/api/stc/users/renew-expired', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ handle, inviteCode: code }),
+
+            // 为避免受原始结构影响，这里直接重绘弹窗内容
+            const container = document.getElementById('dialogue_popup_text');
+            if (container) {
+                const safeHandle = expiredHandle || '';
+                const purchaseHtml = purchaseLink
+                    ? `<a id="stc-buy-link" href="${purchaseLink}" class="stc-buy-btn" target="_blank">
+                           <i class="fa-solid fa-cart-shopping"></i> 购买激活码
+                       </a>`
+                    : '';
+
+                container.innerHTML = `
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+                        <h2 id="logoBlock" class="flex-container" style="flex-direction:column;align-items:center;gap:8px;">
+                            <img src="img/logo.png" alt="SillyTavern" class="logo">
+                            <span>SillyTavern</span>
+                        </h2>
+                        <div class="stc-expired-header" style="width:100%;">
+                            <span class="exp-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                            <h3>账户使用时间已到期</h3>
+                            <p id="stc-expired-desc">
+                                账号 "${safeHandle || '当前账号'}" 的使用时间已到期，请使用新的激活码续费
+                            </p>
+                        </div>
+                        <div class="stc-renew-form" style="width:100%;">
+                            <input id="stc-renew-handle" type="text" placeholder="账号用户名" autocomplete="username" readonly
+                                   value="${safeHandle}">
+                            <input id="stc-renew-code-input" type="text" placeholder="输入激活码" autocomplete="off">
+                            <button id="stc-renew-submit" class="btn-renew">
+                                <i class="fa-solid fa-rotate-right"></i> 立即续费
+                            </button>
+                            ${purchaseHtml}
+                            <div id="stc-renew-msg" class="stc-renew-msg"></div>
+                        </div>
+                        <div class="stc-back-login">
+                            <a href="/login">← 使用其他账号登录</a>
+                        </div>
+                    </div>
+                `;
+
+                // 绑定续费按钮逻辑
+                const renewBtn = document.getElementById('stc-renew-submit');
+                if (renewBtn) {
+                    renewBtn.addEventListener('click', async function() {
+                        const handle = (document.getElementById('stc-renew-handle').value || '').trim();
+                        const code   = (document.getElementById('stc-renew-code-input').value || '').trim();
+                        const btn    = this;
+                        if (!handle) { showMsg('请填写账号用户名', false); return; }
+                        if (!code)   { showMsg('请输入激活码', false); return; }
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 续费中...';
+                        const msgEl = document.getElementById('stc-renew-msg');
+                        if (msgEl) msgEl.style.display = 'none';
+                        try {
+                            const r = await fetch('/api/stc/users/renew-expired', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ handle, inviteCode: code }),
+                            });
+                            const d = await r.json();
+                            if (d.success) {
+                                const expStr = d.expiresAt ? new Date(d.expiresAt).toLocaleDateString('zh-CN') : '永久';
+                                showMsg(`续费成功！账户有效期至 ${expStr}，正在跳转登录...`, true);
+                                setTimeout(() => { location.href = '/login'; }, 2000);
+                            } else {
+                                showMsg(d.error || '续费失败，请检查激活码', false);
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> 立即续费';
+                            }
+                        } catch (e) {
+                            showMsg('网络错误，请重试', false);
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> 立即续费';
+                        }
                     });
-                    const d = await r.json();
-                    if (d.success) {
-                        const expStr = d.expiresAt ? new Date(d.expiresAt).toLocaleDateString('zh-CN') : '永久';
-                        showMsg(`续费成功！账户有效期至 ${expStr}，正在跳转登录...`, true);
-                        setTimeout(() => { location.href = '/login'; }, 2000);
-                    } else {
-                        showMsg(d.error || '续费失败，请检查激活码', false);
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> 立即续费';
-                    }
-                } catch (e) {
-                    showMsg('网络错误，请重试', false);
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> 立即续费';
                 }
-            });
-            function showMsg(text, ok) {
-                const el = document.getElementById('stc-renew-msg');
-                el.className = 'stc-renew-msg ' + (ok ? 'ok' : 'err');
-                el.textContent = text; el.style.display = '';
+
+                function showMsg(text, ok) {
+                    const el = document.getElementById('stc-renew-msg');
+                    if (!el) return;
+                    el.className = 'stc-renew-msg ' + (ok ? 'ok' : 'err');
+                    el.textContent = text;
+                    el.style.display = '';
+                }
             }
         }
 

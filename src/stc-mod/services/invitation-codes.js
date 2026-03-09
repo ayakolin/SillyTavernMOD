@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { getStcConfig, getStcDataDir } from '../config.js';
+import { extendExpiration, getUserMeta } from '../user-metadata.js';
 
 const CODES_FILE = 'invitation-codes.json';
 
@@ -49,6 +50,17 @@ export function calculateExpiration(durationType) {
     const days = getDurationDays(durationType);
     if (days === null) return 0;
     return Date.now() + days * 24 * 60 * 60 * 1000;
+}
+
+/**
+ * Calculate duration in milliseconds from a duration type
+ * @param {string} durationType
+ * @returns {number|null} null for permanent, milliseconds for others
+ */
+function getDurationMs(durationType) {
+    const days = getDurationDays(durationType);
+    if (days === null) return null;
+    return days * 24 * 60 * 60 * 1000;
 }
 
 export function isEnabled() {
@@ -97,7 +109,26 @@ export function useInvitationCode(code, usedBy) {
     if (idx === -1) return { success: false, reason: '邀请码不存在' };
 
     const invitation = codes[idx];
-    const userExpiresAt = calculateExpiration(invitation.durationType);
+
+    // Calculate new user expiration time by extending from current expiry
+    const durationMs = getDurationMs(invitation.durationType);
+    let userExpiresAt = 0;
+
+    if (durationMs === null) {
+        // Permanent: mark user as permanent (expiresAt = 0)
+        extendExpiration(usedBy, 0);
+        const meta = getUserMeta(usedBy) || {};
+        userExpiresAt = 0;
+        // Ensure user metadata reflects permanent status
+        if (meta.expiresAt !== 0) {
+            extendExpiration(usedBy, 0);
+            userExpiresAt = getUserMeta(usedBy)?.expiresAt || 0;
+        }
+    } else {
+        extendExpiration(usedBy, durationMs);
+        const meta = getUserMeta(usedBy) || {};
+        userExpiresAt = meta.expiresAt || 0;
+    }
 
     codes[idx] = {
         ...invitation,
