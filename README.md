@@ -95,6 +95,70 @@ npm run start
 
 > 云服务器上请将 `127.0.0.1` 换成你的公网 IP 或域名，例如：`http://your-ip:8000/`。
 
+---
+
+## 使用 Docker 部署（官方镜像）
+
+本仓库已在 Docker Hub 提供预构建镜像：`zhaiker/sillytavernmod:latest`  
+适合不想本地装 Node/npm、只想一条命令跑起来的用户。
+
+### 方式一：直接使用 `docker run`
+
+在服务器任意目录下执行：
+
+```bash
+docker run -d \
+  --name sillytavernmod \
+  -p 8000:8000 \
+  -v ./config:/home/node/app/config \
+  -v ./data:/home/node/app/data \
+  -v ./plugins:/home/node/app/plugins \
+  -v ./extensions:/home/node/app/public/scripts/extensions/third-party \
+  zhaiker/sillytavernmod:latest
+```
+
+说明：
+
+- `-p 8000:8000`：将容器的 8000 端口映射到宿主机 8000 端口，可按需修改。
+- 当前目录下会创建 `config` / `data` / `plugins` / `extensions` 四个文件夹，用来持久化配置和数据。
+
+启动完成后，浏览器访问：
+
+- `http://服务器IP:8000/`
+
+> 容器启动脚本会在缺少 `config/config.yaml` 时，自动从 `default/config.yaml` 拷贝一份，并执行 `npm run postinstall` 补全缺省字段；  
+> **首次登录 / Basic Auth 流程** 与上面「运行与基础使用」章节完全一致。
+
+### 方式二：使用 `docker-compose`
+
+1. 克隆本仓库并进入 `docker` 目录：
+
+```bash
+git clone https://github.com/zhaiiker/SillyTavernMOD.git
+cd SillyTavernMOD/docker
+```
+
+2. 确认 `docker-compose.yml` 中镜像名为：
+
+```yaml
+image: zhaiker/sillytavernmod:latest
+```
+
+3. 一键启动：
+
+```bash
+docker compose up -d
+```
+
+4. 更新到最新镜像时：
+
+```bash
+docker pull zhaiker/sillytavernmod:latest
+cd SillyTavernMOD/docker
+docker compose down
+docker compose up -d
+```
+
 ### 5. 首次登录与关闭 Basic Auth 的推荐流程
 
 1. **通过 Basic Auth 进入站点**
