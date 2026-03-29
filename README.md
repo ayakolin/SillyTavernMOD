@@ -1,7 +1,7 @@
 # SillyTavern + SillyTavernchat (STC-MOD)
 
 LLM Frontend for Power Users  
-本仓库基于 **SillyTavern 1.16.0 官方版本**，在其上通过「外挂模块 / Sidecar Module」方式集成了
+本仓库基于 **SillyTavern 1.17.0 官方版本**，在其上通过「外挂模块 / Sidecar Module」方式集成了
 `SillyTavernchat (STC-MOD)` 的一系列管理与运营功能，同时尽量保持对上游的 **低侵入、易升级**。
 
 ---
@@ -206,7 +206,7 @@ pm2 logs sillytavern
 ### 7. STC 管理面板入口
 
 - 使用管理员账号登录 SillyTavern 后，在聊天界面右下角可以看到 STC 的紫色悬浮按钮。  
-- 点击即可打开 STC 管理面板，内含：系统监控、邀请码管理、公告管理、邮件配置、OAuth 配置、默认模板、用户空间、用户管理、定时任务等功能。
+- 点击即可打开 STC 管理面板，内含：系统监控、邀请码管理、公告管理、邮件配置、OAuth 配置、默认模板、用户空间、用户管理（含多选与批量删除）、定时任务等功能。
 
 ---
 
@@ -220,7 +220,7 @@ STC-MOD 的主要能力包括（非完整列表）：
 - 用户「签到扩容」与个人空间使用情况展示。
 - 公共角色卡分享与导入（与二开版 SillyTavernchat 功能等价）。
 - 社区论坛（发帖、评论、图片上传等）。
-- STC 管理面板（系统监控、批量用户管理、定时任务、不活跃用户清理等）。
+- STC 管理面板（系统监控、用户管理多选与批量删除、定时任务、不活跃用户清理等）。
 
 所有后端路由均通过 `src/stc-mod/index.js` 注册，前端管理与入口则通过
 `public/scripts/extensions/third-party/stc-admin-panel/` 扩展注入。
