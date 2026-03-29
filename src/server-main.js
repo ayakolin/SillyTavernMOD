@@ -60,6 +60,16 @@ import {
 } from './util.js';
 import { UPLOADS_DIRECTORY } from './constants.js';
 
+// [STC-MOD] SillyTavernchat sidecar module loader
+let stcMod = null;
+try {
+    // @ts-expect-error STC-MOD sidecar has no type declarations
+    stcMod = await import('./stc-mod/index.js');
+    console.log('[STC-MOD] SillyTavernchat module loaded.');
+} catch (e) {
+    if (e.code !== 'ERR_MODULE_NOT_FOUND') console.error('[STC-MOD] Load error:', e.message);
+}
+
 // Routers
 import { router as usersPublicRouter } from './endpoints/users-public.js';
 import { init as statsInit, onExit as statsOnExit } from './endpoints/stats.js';
@@ -175,7 +185,10 @@ if (!cliArgs.disableCsrf) {
             req.session.csrfToken = token;
         },
         skipCsrfProtection: (req) => {
-            return cliArgs.enableCorsProxy ? /^\/proxy\//.test(req.path) : false;
+            const proxyBypass = cliArgs.enableCorsProxy ? /^\/proxy\//.test(req.path) : false;
+            // [STC-MOD] Custom CSRF exemption
+            const stcBypass = stcMod?.shouldSkipCsrf?.(req) ?? false;
+            return proxyBypass || stcBypass;
         },
         size: 32,
     });
@@ -199,6 +212,9 @@ if (!cliArgs.disableCsrf) {
         });
     });
 }
+
+// [STC-MOD] Public routes and page overrides (must be BEFORE official / and /login routes)
+if (stcMod?.setupPublicRoutes) await stcMod.setupPublicRoutes(app);
 
 // Static files
 // Host index page
@@ -234,6 +250,9 @@ app.use(express.static(path.join(serverDirectory, 'public'), {}));
 // Public API
 app.use('/api/users', usersPublicRouter);
 
+// [STC-MOD] Additional public API routes (no auth required)
+if (stcMod?.setupPublicApi) await stcMod.setupPublicApi(app);
+
 // Everything below this line requires authentication
 app.use(requireLoginMiddleware);
 app.post('/api/ping', (request, response) => {
@@ -266,6 +285,9 @@ app.get('/version', async function (_, response) {
 
 redirectDeprecatedEndpoints(app);
 setupPrivateEndpoints(app);
+
+// [STC-MOD] Private routes (requires authentication)
+if (stcMod?.setupPrivateRoutes) await stcMod.setupPrivateRoutes(app);
 
 /**
  * Tasks that need to be run before the server starts listening.

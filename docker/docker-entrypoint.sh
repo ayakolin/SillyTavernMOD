@@ -53,6 +53,17 @@ for dir in $CHECK_DIRS; do
     fi
 done
 
+# STC-MOD: docker-compose often mounts ./extensions onto third-party; an empty host dir hides the image copy — seed from bundle
+STC_DST="public/scripts/extensions/third-party/stc-admin-panel"
+STC_SRC="/opt/stc-mod-bundled/stc-admin-panel"
+if [ ! -f "$STC_DST/manifest.json" ] && [ -f "$STC_SRC/manifest.json" ]; then
+    echo "STC-MOD: Seeding stc-admin-panel (third-party dir had no bundled admin panel, e.g. empty volume mount)."
+    mkdir -p "$(dirname "$STC_DST")"
+    mkdir -p "$STC_DST"
+    cp -a "$STC_SRC"/. "$STC_DST"/
+    chown -R node:node "$STC_DST" 2>/dev/null || true
+fi
+
 # Mode Selection
 if [ "$(id -u)" = "0" ]; then
     # Check if PUID/PGID variables are provided

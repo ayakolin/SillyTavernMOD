@@ -34,6 +34,12 @@ RUN \
   echo "*** Run Webpack ***" && \
   node "./docker/build-lib.js"
 
+# STC-MOD: keep a copy for docker-compose volumes that replace public/scripts/extensions/third-party with an empty host dir
+RUN \
+  echo "*** Bundle STC admin panel for volume seeding ***" && \
+  mkdir -p /opt/stc-mod-bundled && \
+  cp -a public/scripts/extensions/third-party/stc-admin-panel /opt/stc-mod-bundled/
+
 # Set the entrypoint script and cleanup
 RUN \
   echo "*** Cleanup ***" && \
