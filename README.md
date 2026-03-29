@@ -72,7 +72,7 @@ basicAuthUser:
 
 - `basicAuthMode: true`：默认开启 HTTP Basic Auth 保护，防止云服务器直接暴露在公网。
 - 默认访问账号：**admin / 123456**（仅用于进入站点大门，进入 ST 直接点击登录就可以进入，然后需要给默认管理员设置密码）。
-
+- 在登录页面用户名输入 `default-user` **直接点击登录**不需要如密码就可以进入后台，然后需要给默认管理员设置密码。
 ### 4. 启动服务
 
 本地或服务器前台启动（调试阶段推荐）：
@@ -102,13 +102,25 @@ npm run start
 本仓库已在 Docker Hub 提供预构建镜像：`zhaiker/sillytavernmod:latest`  
 适合不想本地装 Node/npm、只想一条命令跑起来的用户。
 
-### 方式一：直接使用 `docker run`
+容器内应用目录为 **`/home/node/app`**，持久化时请把 **配置、用户数据、插件、第三方扩展** 分别挂到对应路径（见下表）。**不要**把宿主机某个目录错误地挂到 `config`（例如把名为 `data` 的文件夹挂到 `.../config`），否则配置与用户数据会混在一起。
 
-在服务器任意目录下执行：
+| 宿主机目录（示例） | 容器内路径 | 用途 |
+|-------------------|------------|------|
+| `.../config` | `/home/node/app/config` | `config.yaml` 等 |
+| `.../data` | `/home/node/app/data` | 用户聊天、角色卡、上传等数据 |
+| `.../plugins` | `/home/node/app/plugins` | 服务端插件（可选） |
+| `.../extensions` | `/home/node/app/public/scripts/extensions/third-party` | 第三方前端扩展（可选；空目录时首次启动会写入 `stc-admin-panel`） |
+
+**不建议**将宿主机目录挂载到整个 **`/home/node/app/public`**：会覆盖镜像里已通过构建打包好的前端静态资源，容易导致页面空白或版本不一致。除非你在宿主机自行维护一份与镜像版本一致的完整 `public` 目录，否则请只按上表挂载。
+
+### 方式一：直接使用 `docker run`（当前目录、相对路径）
+
+在准备存放数据的目录下执行（首次运行前可先 `mkdir -p config data plugins extensions`）：
 
 ```bash
 docker run -d \
   --name sillytavernmod \
+  --restart unless-stopped \
   -p 8000:8000 \
   -v ./config:/home/node/app/config \
   -v ./data:/home/node/app/data \
@@ -117,15 +129,39 @@ docker run -d \
   zhaiker/sillytavernmod:latest
 ```
 
+### 方式一（变体）：Linux 服务器、绝对路径（推荐生产）
+
+在宿主机先创建目录（示例使用 `/root/sillytavern`，可按需改为其他路径）：
+
+```bash
+mkdir -p /root/sillytavern/{config,data,plugins,extensions}
+```
+
+再启动容器：
+
+```bash
+docker run -d \
+  --name sillytavern \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  -v /root/sillytavern/config:/home/node/app/config \
+  -v /root/sillytavern/data:/home/node/app/data \
+  -v /root/sillytavern/plugins:/home/node/app/plugins \
+  -v /root/sillytavern/extensions:/home/node/app/public/scripts/extensions/third-party \
+  zhaiker/sillytavernmod:latest
+```
+
 说明：
 
-- `-p 8000:8000`：将容器的 8000 端口映射到宿主机 8000 端口，可按需修改。
-- 当前目录下会创建 `config` / `data` / `plugins` / `extensions` 四个文件夹，用来持久化配置和数据。
-- 将 `./extensions` 挂载到 `public/scripts/extensions/third-party` 时，若宿主机目录为空，**首次启动**会从镜像内自动解压 **STC 管理面板扩展**（`stc-admin-panel`）到该目录，避免二开管理入口缺失；若你自行往 `extensions` 里放了其它第三方扩展，请保留其中的 `stc-admin-panel` 文件夹或同样依赖上述自动恢复逻辑。
+- `--restart unless-stopped`：宿主机或 Docker 重启后容器会自动拉起（除非曾被手动 `stop`）。
+- `--name`：容器名可自定（上例分别为 `sillytavernmod` 与 `sillytavern`）。
+- `-p 8000:8000`：宿主机与容器端口映射，可按需改为例如 `-p 127.0.0.1:8000:8000` 仅本机访问。
+- `config` / `data` / `plugins` / `extensions` 四个挂载点：分别对应配置、用户数据、服务端插件、第三方前端扩展；**`data` 必须挂到 `.../data`，`config` 必须挂到 `.../config`**，二者不可对调。
+- 将 `extensions` 挂载到 `public/scripts/extensions/third-party` 时，若宿主机目录为空，**首次启动**会从镜像内恢复 **STC 管理面板**（`stc-admin-panel`）；若你自行放入其它扩展，请尽量保留其中的 `stc-admin-panel` 目录，或依赖上述自动恢复逻辑。
 
 启动完成后，浏览器访问：
 
-- `http://服务器IP:8000/`
+- `http://服务器IP:8000/`（或 `http://127.0.0.1:8000/` 若仅本机映射）
 
 > 容器启动脚本会在缺少 `config/config.yaml` 时，自动从 `default/config.yaml` 拷贝一份，并执行 `npm run postinstall` 补全缺省字段；  
 > **首次登录 / Basic Auth 流程** 与上面「运行与基础使用」章节完全一致。
@@ -160,7 +196,7 @@ docker compose down
 docker compose up -d
 ```
 
-### 5. 首次登录与关闭 Basic Auth 的推荐流程
+### Docker 部署后：首次登录与关闭 Basic Auth
 
 1. **通过 Basic Auth 进入站点**
    - 浏览器访问 `http://服务器IP:8000/`。  
