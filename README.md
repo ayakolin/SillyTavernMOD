@@ -33,7 +33,9 @@ LLM Frontend for Power Users
 
 ## 运行与基础使用
 
-> 以下步骤以仓库地址 `https://github.com/zhaiiker/SillyTavernMOD`、分支 `stc-mod` 为例，假设当前工作目录为项目根目录。
+> 以下步骤以仓库地址 `https://github.com/zhaiiker/SillyTavernMOD` 为例，假设当前工作目录为项目根目录。
+>
+> 说明：当前仓库已合并为**唯一维护分支**，今后安装、更新与二次开发都默认基于当前默认分支进行，无需再手动切换历史功能分支。
 
 ### 1. 环境准备
 
@@ -44,7 +46,7 @@ LLM Frontend for Power Users
 ### 2. 获取代码并安装依赖
 
 ```bash
-git clone https://github.com/zhaiiker/SillyTavernMOD/tree/stc-mod
+git clone https://github.com/zhaiiker/SillyTavernMOD.git
 cd SillyTavernMOD
 
 npm install
@@ -266,6 +268,8 @@ STC-MOD 的主要能力包括（非完整列表）：
 
 ## 升级与二次开发注意事项
 
+> 当前仓库已合并为**单一维护分支**，所有二次开发、功能迭代与 Bug 修复均在此分支上进行，不再维护其他功能分支。
+
 为了在跟进上游 SillyTavern 版本时减少冲突，本项目遵循以下原则：
 
 - 尽可能 **不修改** 官方源文件；确需修改时：
@@ -277,11 +281,11 @@ STC-MOD 的主要能力包括（非完整列表）：
 
 升级官方 SillyTavern 版本时，建议流程：
 
-1. **先合并官方更新**，保证仓库处于干净状态。
+1. **先从上游合并官方更新**，保证仓库处于干净状态。
 2. 打开 [MODIFICATIONS.md](MODIFICATIONS.md)，按钩子编号逐条核对：
    - 对应文件是否仍存在。
    - Hook 附近逻辑是否有破坏性变动。
-3. 若官方结构发生变化，优先调整 `stc-mod` 内部实现，而不是继续扩散对官方代码的修改范围。
+3. 若官方结构发生变化，优先调整 `src/stc-mod/` 内部实现，而不是继续扩散对官方代码的修改范围。
 
 ---
 
