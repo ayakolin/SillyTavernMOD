@@ -115,19 +115,13 @@ export function useInvitationCode(code, usedBy) {
     let userExpiresAt = 0;
 
     if (durationMs === null) {
-        // Permanent: mark user as permanent (expiresAt = 0)
+        // Permanent: set expiresAt = 0
         extendExpiration(usedBy, 0);
-        const meta = getUserMeta(usedBy) || {};
         userExpiresAt = 0;
-        // Ensure user metadata reflects permanent status
-        if (meta.expiresAt !== 0) {
-            extendExpiration(usedBy, 0);
-            userExpiresAt = getUserMeta(usedBy)?.expiresAt || 0;
-        }
     } else {
         extendExpiration(usedBy, durationMs);
         const meta = getUserMeta(usedBy) || {};
-        userExpiresAt = meta.expiresAt || 0;
+        userExpiresAt = meta.expiresAt ?? 0;
     }
 
     codes[idx] = {

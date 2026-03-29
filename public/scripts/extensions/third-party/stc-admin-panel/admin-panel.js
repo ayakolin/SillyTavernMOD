@@ -1244,6 +1244,7 @@ async function renderUsersTab(container) {
     document.getElementById('stc-ua-refresh')?.addEventListener('click', () => {
         currentStoragePage = 1;
         storageSearchTerm = '';
+        _selectedHandles.clear();
         loadStorageAnalysis(1);
     });
     document.getElementById('stc-inactive-preview')?.addEventListener('click', () => {
@@ -1309,6 +1310,7 @@ async function deleteSingleUser(handle) {
         }
 
         toast(`用户 "${handle}" 已删除`);
+        _selectedHandles.delete(handle);
         await loadStorageAnalysis(currentStoragePage);
     } catch (e) {
         toast('删除失败: ' + e.message, true);
@@ -1317,6 +1319,37 @@ async function deleteSingleUser(handle) {
 
 // Cache for all storage data when sorting by activity
 let _allStorageData = null;
+
+// Selected handles for batch operations
+let _selectedHandles = new Set();
+
+async function deleteBatchUsers() {
+    const handles = [..._selectedHandles];
+    if (!handles.length) return;
+
+    if (!confirm(`⚠ 危险操作！确定要删除选中的 ${handles.length} 个用户吗？\n\n用户：${handles.slice(0, 5).join(', ')}${handles.length > 5 ? ` 等 ${handles.length} 人` : ''}\n\n此操作将永久删除这些用户的账号及全部数据，不可恢复！`)) return;
+
+    const btn = document.getElementById('stc-batch-delete-btn');
+    if (btn) { btn.disabled = true; btn._orig = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 删除中...'; }
+
+    try {
+        const r = await fetch('/api/stc/users/delete-batch', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ handles }),
+        });
+        if (!r.ok) throw new Error((await r.json())?.error);
+        const d = await r.json();
+        _selectedHandles.clear();
+        let msg = `已删除 ${d.deleted.length} 个用户`;
+        if (d.failed?.length) msg += `，${d.failed.length} 个失败`;
+        toast(msg, d.failed?.length > 0);
+        await loadStorageAnalysis(currentStoragePage);
+    } catch (e) {
+        toast('批量删除失败: ' + e.message, true);
+        if (btn) { btn.disabled = false; btn.innerHTML = btn._orig; }
+    }
+}
 
 async function loadStorageAnalysis(page, sortBy = 'name') {
     if (page !== undefined) currentStoragePage = page;
@@ -1446,9 +1479,16 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
             return '#e74c3c';
         })();
 
+        const isChecked = _selectedHandles.has(u.handle);
+
         return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s"
                     onmouseover="this.style.background='rgba(255,255,255,.04)'"
-                    onmouseout="this.style.background=''">
+                    onmouseout="this.style.background='${isChecked ? 'rgba(108,99,255,.15)' : ''}'">
+            <td style="padding:8px 10px;text-align:center;width:36px">
+                <input type="checkbox" class="stc-user-checkbox" data-handle="${esc(u.handle)}"
+                    ${isChecked ? 'checked' : ''}
+                    style="width:15px;height:15px;cursor:pointer;accent-color:#6c63ff">
+            </td>
             <td style="padding:8px 10px;font-weight:600">${esc(u.handle)}</td>
             <td style="padding:8px 10px;text-align:right;color:#eee;font-weight:600">${u.totalMiB} MiB</td>
             <td style="padding:8px 10px;text-align:right;color:#aaa">${c.chats || 0}</td>
@@ -1477,6 +1517,11 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
     const sortLabel = sortBy === 'storage' ? '按占用排序' : sortBy === 'activity' ? '按活跃时间' : '按用户名';
     const sortIcon = sortBy === 'storage' ? 'fa-arrow-down-wide-short' : sortBy === 'activity' ? 'fa-clock' : 'fa-arrow-down-a-z';
 
+    const allHandles = data.map(u => u.handle);
+    const allChecked = allHandles.length > 0 && allHandles.every(h => _selectedHandles.has(h));
+    const someChecked = allHandles.some(h => _selectedHandles.has(h));
+    const selectedCount = _selectedHandles.size;
+
     container.innerHTML = `
         <!-- Search bar -->
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
@@ -1491,6 +1536,14 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
                 style="padding:6px 14px;font-size:.85em;white-space:nowrap;background:${sortBy !== 'name' ? '#4a90e2' : ''};color:#fff">
                 <i class="fa-solid ${sortIcon}"></i> ${sortLabel}</button>
         </div>
+        <!-- Batch action bar -->
+        <div id="stc-batch-bar" style="display:${selectedCount > 0 ? 'flex' : 'none'};align-items:center;gap:10px;padding:8px 12px;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.4);border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
+            <span style="font-size:.85em;color:#ccc"><i class="fa-solid fa-check-square" style="color:#6c63ff;margin-right:4px"></i>已选 <strong style="color:#fff" id="stc-selected-count">${selectedCount}</strong> 个用户</span>
+            <button id="stc-batch-delete-btn" class="menu_button" style="padding:5px 14px;font-size:.82em;background:#c0392b;color:#fff;white-space:nowrap">
+                <i class="fa-solid fa-trash-can"></i> 批量删除</button>
+            <button id="stc-batch-clear-btn" class="menu_button" style="padding:5px 14px;font-size:.82em;color:#fff;white-space:nowrap">
+                <i class="fa-solid fa-xmark"></i> 取消选择</button>
+        </div>
         <!-- Summary -->
         <div style="color:#888;font-size:.82em;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap">
             <span>共 <strong style="color:#eee">${total}</strong> 个用户
@@ -1501,9 +1554,13 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
         </div>
         ${pager}
         <div style="overflow-x:auto;margin-top:8px">
-        <table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:720px">
+        <table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:760px">
           <thead>
             <tr style="color:#888;border-bottom:1px solid #2a3a5e">
+              <th style="padding:8px 10px;text-align:center;width:36px">
+                <input type="checkbox" id="stc-select-all" title="全选/取消全选"
+                    ${allChecked ? 'checked' : ''}
+                    style="width:15px;height:15px;cursor:pointer;accent-color:#6c63ff"></th>
               <th style="padding:8px 10px;text-align:left">用户</th>
               <th style="padding:8px 10px;text-align:right">总占用</th>
               <th style="padding:8px 10px;text-align:right">聊天记录</th>
@@ -1557,6 +1614,62 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
     container.querySelectorAll('.stc-user-delete').forEach(btn => {
         btn.addEventListener('click', () => deleteSingleUser(btn.dataset.handle));
     });
+
+    // Checkbox handlers
+    const updateBatchBar = () => {
+        const bar = container.querySelector('#stc-batch-bar');
+        const countEl = container.querySelector('#stc-selected-count');
+        if (bar) bar.style.display = _selectedHandles.size > 0 ? 'flex' : 'none';
+        if (countEl) countEl.textContent = _selectedHandles.size;
+        // Update select-all checkbox state
+        const selectAll = container.querySelector('#stc-select-all');
+        if (selectAll) {
+            const pageHandles = data.map(u => u.handle);
+            selectAll.checked = pageHandles.length > 0 && pageHandles.every(h => _selectedHandles.has(h));
+            selectAll.indeterminate = !selectAll.checked && pageHandles.some(h => _selectedHandles.has(h));
+        }
+        // Update row highlight
+        container.querySelectorAll('.stc-user-checkbox').forEach(cb => {
+            const row = cb.closest('tr');
+            if (row) row.style.background = cb.checked ? 'rgba(108,99,255,.15)' : '';
+        });
+    };
+
+    container.querySelector('#stc-select-all')?.addEventListener('change', (e) => {
+        const pageHandles = data.map(u => u.handle);
+        if (e.target.checked) {
+            pageHandles.forEach(h => _selectedHandles.add(h));
+        } else {
+            pageHandles.forEach(h => _selectedHandles.delete(h));
+        }
+        container.querySelectorAll('.stc-user-checkbox').forEach(cb => {
+            cb.checked = e.target.checked;
+        });
+        updateBatchBar();
+    });
+
+    container.querySelectorAll('.stc-user-checkbox').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                _selectedHandles.add(cb.dataset.handle);
+            } else {
+                _selectedHandles.delete(cb.dataset.handle);
+            }
+            updateBatchBar();
+        });
+    });
+
+    container.querySelector('#stc-batch-delete-btn')?.addEventListener('click', deleteBatchUsers);
+    container.querySelector('#stc-batch-clear-btn')?.addEventListener('click', () => {
+        _selectedHandles.clear();
+        updateBatchBar();
+        container.querySelectorAll('.stc-user-checkbox').forEach(cb => { cb.checked = false; });
+        const selectAll = container.querySelector('#stc-select-all');
+        if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+    });
+
+    // Initial highlight for already-selected rows
+    updateBatchBar();
 }
 
 async function previewInactiveUsers() {

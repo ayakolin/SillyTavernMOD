@@ -50,8 +50,8 @@ router.post('/renew', (req, res) => {
         const useResult = invitationService.useInvitationCode(inviteCode, handle);
         if (!useResult.success) return res.status(400).json({ error: '邀请码使用失败' });
 
-        setUserMeta(handle, { expiresAt: useResult.expiresAt || 0 });
-        res.json({ success: true, expiresAt: useResult.expiresAt });
+        setUserMeta(handle, { expiresAt: useResult.expiresAt ?? 0 });
+        res.json({ success: true, expiresAt: useResult.expiresAt ?? 0 });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -339,6 +339,39 @@ router.post('/reset-user', requireAdminMiddleware, async (req, res) => {
         }
 
         res.json({ success: true, message: `用户 ${handle} 已重置` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Admin: batch delete users
+router.post('/delete-batch', requireAdminMiddleware, async (req, res) => {
+    try {
+        const { handles } = req.body;
+        if (!Array.isArray(handles) || handles.length === 0) {
+            return res.status(400).json({ error: '缺少用户列表' });
+        }
+
+        /** @type {{ deleted: string[], failed: Array<{handle: string, error: string}> }} */
+        const results = { deleted: [], failed: [] };
+
+        for (const handle of handles) {
+            if (!handle || handle === 'default-user') {
+                results.failed.push({ handle, error: '不能删除默认用户或无效用户名' });
+                continue;
+            }
+            try {
+                await storage.removeItem(toKey(handle));
+                const dirs = getUserDirectories(handle);
+                await fsPromises.rm(dirs.root, { recursive: true, force: true });
+                deleteUserMeta(handle);
+                results.deleted.push(handle);
+            } catch (e) {
+                results.failed.push({ handle, error: e.message });
+            }
+        }
+
+        res.json(results);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

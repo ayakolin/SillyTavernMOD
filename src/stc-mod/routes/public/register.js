@@ -115,8 +115,8 @@ router.post('/register', async (req, res) => {
         let expiresAt = 0;
         if (invitationService.isEnabled() && inviteCode) {
             const useResult = invitationService.useInvitationCode(inviteCode, handle);
-            if (useResult.success && useResult.expiresAt) {
-                expiresAt = useResult.expiresAt;
+            if (useResult.success) {
+                expiresAt = useResult.expiresAt ?? 0;
             }
         }
 
@@ -140,7 +140,7 @@ router.post('/register', async (req, res) => {
             success: true,
             handle,
             name: name.trim(),
-            expiresAt: expiresAt || undefined,
+            expiresAt: expiresAt === 0 ? 0 : expiresAt || undefined,
         });
     } catch (error) {
         console.error('[STC-MOD] Registration error:', error);
@@ -170,11 +170,11 @@ router.post('/renew-expired', async (req, res) => {
             return res.status(400).json({ error: '邀请码使用失败' });
         }
 
-        setUserMeta(handle, { expiresAt: useResult.expiresAt || 0 });
+        setUserMeta(handle, { expiresAt: useResult.expiresAt ?? 0 });
 
         res.json({
             success: true,
-            expiresAt: useResult.expiresAt || undefined,
+            expiresAt: useResult.expiresAt ?? 0,
         });
     } catch (error) {
         console.error('[STC-MOD] Renew expired error:', error);

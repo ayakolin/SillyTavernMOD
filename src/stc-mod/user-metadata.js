@@ -150,15 +150,20 @@ export function recordLogin(handle) {
 }
 
 /**
- * Extend user expiration by a duration in milliseconds
+ * Extend user expiration by a duration in milliseconds.
+ * Pass durationMs = 0 to set the account as permanent (expiresAt = 0).
  * @param {string} handle
- * @param {number} durationMs
+ * @param {number} durationMs  0 means permanent
  */
 export function extendExpiration(handle, durationMs) {
+    if (durationMs === 0) {
+        setUserMeta(handle, { expiresAt: 0 });
+        return;
+    }
     const meta = getUserMeta(handle) || {};
     const now = Date.now();
-    const currentExpiry = meta.expiresAt || now;
-    const base = currentExpiry > now ? currentExpiry : now;
+    const currentExpiry = meta.expiresAt ?? now;
+    const base = (currentExpiry !== 0 && currentExpiry > now) ? currentExpiry : now;
     setUserMeta(handle, { expiresAt: base + durationMs });
 }
 

@@ -187,7 +187,7 @@ router.post('/complete-registration', async (req, res) => {
         if (invitationService.isEnabled() && inviteCode) {
             const inviteCodeStr = String(inviteCode);
             const useResult = invitationService.useInvitationCode(inviteCodeStr, userHandle);
-            if (useResult.expiresAt) expiresAt = useResult.expiresAt;
+            if (useResult.success) expiresAt = useResult.expiresAt ?? 0;
         }
 
         setUserMeta(userHandle, {
