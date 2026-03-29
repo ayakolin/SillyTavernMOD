@@ -121,6 +121,7 @@ docker run -d \
 
 - `-p 8000:8000`：将容器的 8000 端口映射到宿主机 8000 端口，可按需修改。
 - 当前目录下会创建 `config` / `data` / `plugins` / `extensions` 四个文件夹，用来持久化配置和数据。
+- 将 `./extensions` 挂载到 `public/scripts/extensions/third-party` 时，若宿主机目录为空，**首次启动**会从镜像内自动解压 **STC 管理面板扩展**（`stc-admin-panel`）到该目录，避免二开管理入口缺失；若你自行往 `extensions` 里放了其它第三方扩展，请保留其中的 `stc-admin-panel` 文件夹或同样依赖上述自动恢复逻辑。
 
 启动完成后，浏览器访问：
 
