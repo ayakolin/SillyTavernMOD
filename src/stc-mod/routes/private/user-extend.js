@@ -207,19 +207,37 @@ router.post('/delete-inactive', requireAdminMiddleware, async (req, res) => {
         if (sendEmailNotice) {
             try {
                 const { sendEmail } = await import('../../services/email-service.js');
+                const siteName = getStcConfig('email.fromName', 'SillyTavern');
+                const siteUrl = getStcConfig('email.siteUrl', '');
+                const adminContact = getStcConfig('email.from', '');
+                const contactLine = adminContact
+                    ? `请联系管理员：<a href="mailto:${adminContact}" style="color:#e74c3c">${adminContact}</a>`
+                    : '请联系管理员。';
                 for (const c of candidates) {
                     if (c.email) {
                         try {
                             await sendEmail(
                                 c.email,
-                                '您的账号已被清理',
-                                '',
-                                `<div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-                                    <h3 style="color:#e74c3c">账号清理通知</h3>
-                                    <p>您好，您的账号 <strong>${c.handle}</strong> 已 <strong>${c.daysInactive} 天</strong>未登录。</p>
-                                    <p>根据系统维护政策，该账号的数据已被清理。</p>
-                                    <p>如有疑问请联系管理员。</p>
-                                </div>`,
+                                `[${siteName}] 您的账号数据已被清理`,
+                                `您好 ${c.handle}，\n\n您在 ${siteName} 的账号已 ${c.daysInactive} 天未登录，根据系统维护政策，该账号的数据已被清理。\n\n如有疑问，${adminContact ? '请联系管理员：' + adminContact : '请联系管理员。'}\n\n— ${siteName} 系统通知`,
+                                `<div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif">
+  <div style="background:#e74c3c;color:#fff;padding:20px;text-align:center;border-radius:5px 5px 0 0">
+    <h1 style="margin:0;font-size:22px">${siteName}</h1>
+    <p style="margin:8px 0 0;opacity:.9;font-size:14px">账号清理通知</p>
+  </div>
+  <div style="background:#f9f9f9;padding:30px;border:1px solid #ddd;border-top:none">
+    <p>您好，<strong>${c.handle}</strong>，</p>
+    <p>您在 <strong>${siteName}</strong> 的账号已 <strong>${c.daysInactive} 天</strong>未登录。</p>
+    <div style="background:#fdf2f2;border-left:4px solid #e74c3c;padding:15px;margin:20px 0;border-radius:0 5px 5px 0">
+      根据系统维护政策，该账号的所有数据已于今日被清理。如您希望继续使用，请重新注册账号。
+    </div>
+    <p style="color:#666;font-size:14px">如您认为这是误操作，或有任何疑问，${contactLine}</p>
+    ${siteUrl ? `<p style="color:#666;font-size:14px">平台地址：<a href="${siteUrl}" style="color:#e74c3c">${siteUrl}</a></p>` : ''}
+  </div>
+  <div style="background:#f0f0f0;padding:15px;text-align:center;font-size:12px;color:#999;border-radius:0 0 5px 5px">
+    此邮件由 ${siteName} 系统自动发送，请勿直接回复。
+  </div>
+</div>`,
                             );
                             emailResults.sent++;
                         } catch (e) {
@@ -266,6 +284,8 @@ router.post('/warn-inactive', requireAdminMiddleware, async (req, res) => {
         const threshold = (maxInactiveDays || 30) * 24 * 60 * 60 * 1000;
         const minStorageBytes = (minStorageMB > 0) ? minStorageMB * 1024 * 1024 : 0;
         const { sendEmail } = await import('../../services/email-service.js');
+        const siteName = getStcConfig('email.fromName', 'SillyTavern');
+        const siteUrl = getStcConfig('email.siteUrl', '');
 
         let sent = 0, skipped = 0;
         /** @type {Array<{handle:string,error:string}>} */
@@ -279,16 +299,36 @@ router.post('/warn-inactive', requireAdminMiddleware, async (req, res) => {
                 if (minStorageBytes > 0 && calculateUserStorage(handle) >= minStorageBytes) continue;
                 if (meta.email) {
                     const daysInactive = Math.floor((now - lastActive) / 86400000);
+                    const loginLinkHtml = siteUrl
+                        ? `<div style="text-align:center;margin:25px 0"><a href="${siteUrl}" style="background:#f39c12;color:#fff;padding:12px 30px;border-radius:5px;text-decoration:none;font-size:15px;display:inline-block">立即登录 ${siteName}</a></div>`
+                        : '';
+                    const siteUrlLine = siteUrl
+                        ? `请访问 ${siteUrl} 登录您的账号。`
+                        : '请尽快登录您的账号。';
                     try {
                         await sendEmail(
                             meta.email,
-                            '账号长期未登录提醒',
-                            '',
-                            `<div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-                                <h3 style="color:#f39c12">账号活跃提醒</h3>
-                                <p>您好，您的账号 <strong>${handle}</strong> 已 <strong>${daysInactive} 天</strong>未登录。</p>
-                                <p>为避免账号数据被系统清理，请尽快登录您的账号。</p>
-                            </div>`,
+                            `[${siteName}] 账号长期未登录提醒，请尽快登录`,
+                            `您好 ${handle}，\n\n您在 ${siteName} 的账号已 ${daysInactive} 天未登录。\n\n为避免账号数据被系统自动清理，请尽快登录。${siteUrl ? '\n\n登录地址：' + siteUrl : ''}\n\n如有疑问，请联系管理员。\n\n— ${siteName} 系统通知`,
+                            `<div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif">
+  <div style="background:#f39c12;color:#fff;padding:20px;text-align:center;border-radius:5px 5px 0 0">
+    <h1 style="margin:0;font-size:22px">${siteName}</h1>
+    <p style="margin:8px 0 0;opacity:.9;font-size:14px">账号活跃提醒</p>
+  </div>
+  <div style="background:#f9f9f9;padding:30px;border:1px solid #ddd;border-top:none">
+    <p>您好，<strong>${handle}</strong>，</p>
+    <p>您在 <strong>${siteName}</strong> 的账号已 <strong>${daysInactive} 天</strong>未登录。</p>
+    <div style="background:#fff8e1;border-left:4px solid #f39c12;padding:15px;margin:20px 0;border-radius:0 5px 5px 0">
+      <strong>⚠️ 温馨提示：</strong>根据系统维护政策，长期未活跃的账号数据可能会被自动清理。请尽快登录以保留您的数据。
+    </div>
+    ${loginLinkHtml}
+    <p style="color:#666;font-size:14px">如果按钮无法点击，${siteUrlLine}</p>
+    <p style="color:#666;font-size:14px">如有任何疑问，请联系管理员。</p>
+  </div>
+  <div style="background:#f0f0f0;padding:15px;text-align:center;font-size:12px;color:#999;border-radius:0 0 5px 5px">
+    此邮件由 ${siteName} 系统自动发送，请勿直接回复。
+  </div>
+</div>`,
                         );
                         sent++;
                     } catch (e) {

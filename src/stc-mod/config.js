@@ -98,6 +98,7 @@ export function ensureDefaultConfig() {
             smtp: { host: '', port: 587, secure: false, user: '', password: '' },
             from: '',
             fromName: 'SillyTavern',
+            siteUrl: '',
         },
         userStorage: {
             enabled: false,

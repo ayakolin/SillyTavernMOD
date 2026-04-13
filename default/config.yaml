@@ -379,6 +379,8 @@ email:
     password: ''
   from: ''
   fromName: 'SillyTavern'
+  # 网站访问地址，用于在邮件中生成登录链接（留空则不显示链接）
+  siteUrl: ''
 
 userStorage:
   enabled: true
