@@ -8,7 +8,7 @@
 ## 架构概述
 
 所有二次开发功能以 **Sidecar Module**（外挂模块）方式实现，集中在 `src/stc-mod/` 目录中。
-对官方核心代码的修改仅限于 **1 个文件**（`src/server-main.js`），共 **5 个钩子点**，总计约 **15 行代码**。
+对官方核心代码的修改仍集中在 **1 个文件**（`src/server-main.js`）：包含 **5 个 STC-MOD 钩子点**，以及 **1 处静态资源缓存策略调整**。
 
 ## 核心文件修改
 
@@ -21,6 +21,7 @@
 | **C** | ~217 | **`app.get('/', ...)` 之前**（静态文件托管开始前） | 调用 `stcMod.setupPublicRoutes(app)` | 注册自定义页面路由（欢迎页/登录页/注册页等）；**必须在官方 `/` 和 `/login` 路由之前，否则欢迎页被官方路由截断** |
 | **D** | ~254 | `app.use('/api/users', usersPublicRouter)` 之后 | 调用 `stcMod.setupPublicApi(app)` | 注册无需认证的公开 API 路由 |
 | **E** | ~290 | `setupPrivateEndpoints(app)` 调用之后 | 调用 `stcMod.setupPrivateRoutes(app)` | 注册需要认证的私有 API 路由 |
+| **F** | ~248 | `app.use(express.static(path.join(serverDirectory, 'public'), ...))` | 为前端静态资源添加缓存头 | 降低重复加载 JS/CSS/字体/图片的成本，改善 VPS 在中国网络环境下登录后主界面加载速度 |
 
 > ⚠ **升级注意**：钩子 C 的位置至关重要——必须插入在 `app.get('/', ...)` **之前**，而非仅在 `app.get('/login', ...)` 之前。若顺序错误，未登录用户访问 `/` 时会被官方路由直接跳转到 `/login`，欢迎页永远不会显示。
 
@@ -87,6 +88,31 @@ if (stcMod?.setupPublicApi) await stcMod.setupPublicApi(app);
 // [STC-MOD] Private routes (requires authentication)
 if (stcMod?.setupPrivateRoutes) await stcMod.setupPrivateRoutes(app);
 ```
+
+#### 改动 F - 静态资源缓存策略（约第 248 行）
+
+替换位置：官方前端静态文件托管语句 `app.use(express.static(path.join(serverDirectory, 'public'), {}));`。
+
+```javascript
+app.use(express.static(path.join(serverDirectory, 'public'), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+        if (/\.(js|css|woff|woff2|ttf|svg|png|jpg|jpeg|gif|ico)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=86400, must-revalidate');
+        }
+        if (/\.html$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+        }
+    },
+}));
+```
+
+目的：
+- JS、CSS、字体、图标、图片缓存 1 天，减少登录后主界面重复下载大量静态资源。
+- HTML 缓存 1 小时并保留协商缓存，避免页面文件长期陈旧。
+- 不改变路由顺序，不影响 STC-MOD 页面覆盖、登录鉴权和 API 行为。
 
 ## 新增依赖
 
@@ -219,6 +245,30 @@ userStorage:
   dailyCheckInMiB: 0
 ```
 
+## 部署与性能相关默认配置
+
+为降低中国网络环境下登录后主界面黑屏或长时间等待的概率，默认配置中调整了以下项目：
+
+```yaml
+cacheBuster:
+  enabled: false
+
+extensions:
+  autoUpdate: false
+  models:
+    autoDownload: false
+
+enableDownloadableTokenizers: false
+```
+
+说明：
+- `cacheBuster.enabled: false`：避免启动或首次加载时强制清理浏览器端 JS/CSS 缓存。
+- `extensions.autoUpdate: false`：避免登录后主界面初始化阶段自动访问 GitHub 更新第三方扩展。
+- `extensions.models.autoDownload: false`：避免自动从 HuggingFace 下载 transformers 模型。
+- `enableDownloadableTokenizers: false`：避免缺失 tokenizer 时自动访问 GitHub 下载，改为使用本地 fallback。
+
+> 运行中的 VPS 如果已经生成根目录 `config.yaml`，升级默认配置不会自动覆盖该文件。需要手动确认运行配置中的上述开关也为 `false`。
+
 ## API 路由汇总
 
 ### 公开 API（无需认证）
@@ -283,12 +333,22 @@ userStorage:
 ### 必须操作
 
 1. **拉取官方更新**：正常合并/覆盖官方代码
-2. **重新插入 5 个钩子**（在新版 `src/server-main.js` 中）：
+2. **重新插入 5 个 STC-MOD 钩子**（在新版 `src/server-main.js` 中）：
    - 在文件中搜索 `[STC-MOD]` 注释，若已存在则无需修改
    - 若被覆盖，按上方「具体代码差异」章节逐一插回
    - **特别注意钩子 C**：必须插在 `app.get('/', ...)` 之前，不能只放在 `/login` 之前
 
-3. **保留目录**（升级时不要删除）：
+3. **恢复静态资源缓存策略**：
+   - 检查 `app.use(express.static(path.join(serverDirectory, 'public'), ...))`
+   - 若被上游覆盖为空配置 `{}`，按「改动 F - 静态资源缓存策略」恢复缓存头配置
+
+4. **同步部署默认配置**：
+   - 确认 `cacheBuster.enabled: false`
+   - 确认 `extensions.autoUpdate: false`
+   - 确认 `extensions.models.autoDownload: false`
+   - 确认 `enableDownloadableTokenizers: false`
+
+5. **保留目录**（升级时不要删除）：
    - `src/stc-mod/` — 全部外挂模块代码
    - `public/scripts/extensions/third-party/stc-admin-panel/` — 管理面板前端扩展
    - `data/stc-mod/` — 所有运行时数据（用户元数据、公告、邀请码等）
@@ -302,6 +362,7 @@ userStorage:
 | `cookie-session` 中的 `req.session.handle` | STC-MOD 用此字段判断登录态 |
 | `req.user.profile.handle` | 私有路由用此获取当前用户 handle |
 | `csrfSync` 配置结构 | `skipCsrfProtection` 回调参数是否变更 |
+| `express.static` 调用位置 | 静态资源缓存策略应仍位于 `webpackMiddleware` 之后、公开 API 路由之前 |
 
 ### 快速验证步骤
 
