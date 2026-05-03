@@ -325,7 +325,7 @@ async function preSetupTasks() {
     const directories = await getUserDirectoriesList();
     await migrateGroupChatsMetadataFormat(directories);
     await checkForNewContent(directories);
-    await diskCache.verify(directies);
+    await diskCache.verify(directories);
     migrateFlatSecrets(directories);
     cleanUploads();
     migrateAccessLog();
