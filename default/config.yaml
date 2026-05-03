@@ -251,10 +251,13 @@ extensions:
   # Enable UI extensions
   enabled: true
   # Automatically update extensions when a release version changes
-  autoUpdate: true
+  # Disabled by default for CN deployments: this can block the first logged-in page load
+  # when GitHub is unreachable. Update extensions manually when needed.
+  autoUpdate: false
   models:
     # Enables automatic model download from HuggingFace
-    autoDownload: true
+    # Disabled by default for CN deployments: HuggingFace is often unreachable without a proxy.
+    autoDownload: false
     # Additional models for extensions. Expects model IDs from HuggingFace model hub in ONNX format
     classification: Cohee/distilbert-base-uncased-go-emotions-onnx
     captioning: Xenova/vit-gpt2-image-captioning
@@ -271,7 +274,8 @@ git:
 
 # Additional model tokenizers can be downloaded on demand.
 # Disabling will fallback to another locally available tokenizer.
-enableDownloadableTokenizers: true
+# Disabled by default for CN deployments: some tokenizers are hosted on GitHub.
+enableDownloadableTokenizers: false
 # -- OPENAI CONFIGURATION --
 # A placeholder message to use in strict prompt post-processing mode when the prompt doesn't start with a user message
 promptPlaceholder: "[Start a new chat]"
