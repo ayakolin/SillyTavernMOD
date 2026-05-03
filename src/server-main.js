@@ -245,7 +245,19 @@ app.get('/login', loginPageMiddleware);
 // Host frontend assets
 const webpackMiddleware = getWebpackServeMiddleware();
 app.use(webpackMiddleware);
-app.use(express.static(path.join(serverDirectory, 'public'), {}));
+app.use(express.static(path.join(serverDirectory, 'public'), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+        if (/\.(js|css|woff|woff2|ttf|svg|png|jpg|jpeg|gif|ico)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=86400, must-revalidate');
+        }
+        if (/\.html$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+        }
+    },
+}));
 
 // Public API
 app.use('/api/users', usersPublicRouter);
@@ -313,7 +325,7 @@ async function preSetupTasks() {
     const directories = await getUserDirectoriesList();
     await migrateGroupChatsMetadataFormat(directories);
     await checkForNewContent(directories);
-    await diskCache.verify(directories);
+    await diskCache.verify(directies);
     migrateFlatSecrets(directories);
     cleanUploads();
     migrateAccessLog();
