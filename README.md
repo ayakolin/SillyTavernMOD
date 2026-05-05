@@ -1,7 +1,7 @@
-# SillyTavern + SillyTavernchat (STC-MOD)
+﻿# SillyTavern + SillyTavernchat (STC-MOD)
 
 LLM Frontend for Power Users  
-本仓库基于 **SillyTavern 1.17.0 官方版本**，在其上通过「外挂模块 / Sidecar Module」方式集成了
+本仓库基于 **SillyTavern 1.18.0 官方版本**，在其上通过「外挂模块 / Sidecar Module」方式集成了
 `SillyTavernchat (STC-MOD)` 的一系列管理与运营功能，同时尽量保持对上游的 **低侵入、易升级**。
 
 ---
@@ -319,4 +319,5 @@ STC-MOD 的主要能力包括（非完整列表）：
 本项目沿用上游 SillyTavern 许可协议：
 
 - AGPL-3.0
+
 
