@@ -25,7 +25,41 @@
 
 > ⚠ **升级注意**：钩子 C 的位置至关重要——必须插入在 `app.get('/', ...)` **之前**，而非仅在 `app.get('/login', ...)` 之前。若顺序错误，未登录用户访问 `/` 时会被官方路由直接跳转到 `/login`，欢迎页永远不会显示。
 
+### `src/endpoints/secrets.js`
+
+新增 **STC-MOD API 密钥保险箱**适配层：在用户启用保险箱后，将 `secrets.json` 中的 API key `value` 字段以 AES-256-GCM 加密落盘；解锁后服务端仅在内存中短期持有派生密钥（TTL 可配置）。
+
+设计约束（最低侵入）：
+- **不改**各模型后端：仍通过官方 `readSecret()` 获取密钥；保险箱逻辑只接入 `secrets.js` 的读写层。
+- 只加密用户 API key，不加密官方内部字段（例如 `csrfSecret`），避免破坏登录与 CSRF 流程。
+- 前端提示与弹窗当前为 **简体中文硬编码**（为避免修改官方语言包文件）。
+
+### `public/scripts/secrets.js`
+
+配合服务端保险箱接口，在前端新增以下逻辑：
+- 维护前端的 `secret_vault_state`（是否启用、是否解锁）。
+- 拦截 `writeSecret()`：保存新 API key 时，如保险箱未启用则引导设置密码；如已锁定则引导输入密码。
+- 新增 `maybeOfferVaultMigration()`：当检测到用户有明文 key 且未启用保险箱时，主动弹出迁移提示。
+- 在 `initSecrets()` 初始化阶段，读取状态并提示用户当前是否处于锁定状态。
+
+所有新增的前端提示/弹窗为简体中文硬编码，避免了对上游 `public/locales/*.json` 多语言文件的修改。
+
 ### 具体代码差异
+
+#### `src/endpoints/secrets.js` 后端接口注入
+在核心逻辑中引入 STC-MOD API 密钥保险箱 (`src/stc-mod/services/privacy-vault.js`) 的方法：
+- **`writeSecret` (约第 339 行)**：写入保存 API key 前，拦截检测；若目标 Key 被保险箱保护且状态合规，则对 `value` 进行加密后再落盘，若保险箱被要求开启但未开启，则抛出 `VaultRequiredError` 阻断写入。
+- **`readSecret` (约第 286 行)**：读取 API key 时，判断如果内容已被加密，则请求保险箱解密后再返回。若此时保险箱是锁定状态，向前端抛出 `VaultLockedError`。
+- **`getSecretState` (约第 262 行)**：如果是已被加密的 Key，在前端界面将明文展示修改为 `*******`（隐藏真实密文的截断部分），并增加 `encrypted: true` 标识。
+- **`enableVault` (新增，约第 406 行)**：提供一个新方法给路由层调用，用于第一次激活保险箱功能，并遍历已有的 API key 将其批量加密。
+- **`/write`, `/view`, `/find` API 路由 (约第 496, 529, 545 行)**：增加对保险箱专属错误码（423 Locked / 428 Precondition Required）的捕获与响应封装 `sendVaultError`。
+
+#### `public/scripts/secrets.js` 前端拦截注入
+在前端增加相关的交互和校验代码：
+- **API 密钥保险箱模块 (约第 340-534 行)**：新增了整个 `STC-MOD` 代码块，包括 `readSecretVaultStatus`, `askVaultPassphrase`, `enableSecretVault`, `unlockSecretVault`, `ensureSecretVaultReadyForWrite`, `retrySecretWriteAfterVaultAction`, `maybeOfferVaultMigration`。
+- **`writeSecret` 拦截 (约第 553-566 行)**：覆盖原有的 `fetch('/api/secrets/write')` 调用前，执行 `ensureSecretVaultReadyForWrite()` 拦截；如果后端返回保险箱相关错误，则通过 `retrySecretWriteAfterVaultAction()` 再次引导用户。
+- **`readSecretState` 更新检测 (约第 624 行)**：在成功加载秘密状态后，调用 `maybeOfferVaultMigration()` 检测是否需要提示用户加密旧明文密钥。
+- **`initSecrets` 初始化检测 (约第 1341-1344 行)**：在进入界面时通过 `readSecretVaultStatus()` 读取状态，并在已锁定时弹出 toast 提示。
 
 #### 钩子 A - 模块加载（约第 63 行）
 
@@ -170,6 +204,7 @@ src/stc-mod/
 │       ├── public-characters.js     # 公共角色卡库
 │       ├── system-load.js           # 系统监控（管理员）
 │       ├── user-storage.js          # 存储空间管理（管理员）
+│       ├── privacy-vault.js         # API 密钥保险箱（用户）
 │       ├── default-config.js        # 默认模板管理（管理员）
 │       └── scheduled-tasks.js       # 定时任务（管理员）
 ├── services/
@@ -177,6 +212,7 @@ src/stc-mod/
 │   ├── invitation-codes.js          # 邀请码逻辑
 │   ├── system-monitor.js            # 系统监控
 │   ├── storage-quota.js             # 存储配额
+│   ├── privacy-vault.js             # API 密钥保险箱（用户口令加密）
 │   └── default-template.js          # 默认用户模板
 └── public/
     ├── login.html                   # 自定义登录页（含 OAuth 按钮）
@@ -199,6 +235,7 @@ src/stc-mod/
 | `forum_data/` | 论坛帖子和图片 |
 | `public_characters/` | 公共角色卡索引和文件 |
 | `default-template/` | 新用户默认配置模板 |
+| `privacy-vaults/` | API 密钥保险箱元数据（不含明文密钥） |
 | `system-monitor-history.json` | 系统监控历史 |
 
 ## 配置项
@@ -243,6 +280,11 @@ userStorage:
   enabled: false
   defaultLimitMiB: 500
   dailyCheckInMiB: 0
+
+privacy:
+  secretsVault:
+    requireForApiKeys: true          # 是否强制保存 API key 前启用保险箱
+    unlockTtlMinutes: 480            # 保险箱解锁后服务端内存密钥保留时间
 ```
 
 ## 部署与性能相关默认配置
@@ -325,6 +367,10 @@ enableDownloadableTokenizers: false
 | POST | `/api/stc/scheduled-tasks/clean-backups` | 立即清理备份文件（指定用户或全部） |
 | GET/POST | `/api/stc/scheduled-tasks/config` | 获取/保存定时清理配置 |
 | GET/POST | `/api/stc/default-config/template` | 获取/保存新用户默认配置模板 |
+| POST | `/api/stc/privacy-vault/status` | 当前用户 API 密钥保险箱状态 |
+| POST | `/api/stc/privacy-vault/enable` | 启用保险箱并加密已有 API key |
+| POST | `/api/stc/privacy-vault/unlock` | 解锁保险箱以使用已加密 API key |
+| POST | `/api/stc/privacy-vault/lock` | 立即锁定保险箱 |
 
 ## 升级指南
 

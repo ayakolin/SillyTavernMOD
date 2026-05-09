@@ -337,6 +337,198 @@ async function viewSecrets() {
  */
 export let secret_state = {};
 
+// ───────────────────────────────────────────────────────────────
+// STC-MOD: API 密钥保险箱开始
+// ───────────────────────────────────────────────────────────────
+export let secret_vault_state = {
+    enabled: false,
+    unlocked: false,
+    requireForApiKeys: false,
+    expiresAt: null,
+};
+
+async function readSecretVaultStatus() {
+    try {
+        const response = await fetch('/api/stc/privacy-vault/status', {
+            method: 'POST',
+            headers: getRequestHeaders({ omitContentType: true }),
+        });
+
+        if (response.ok) {
+            secret_vault_state = await response.json();
+        }
+    } catch (error) {
+        console.warn('读取保险箱状态失败:', error);
+    }
+
+    return secret_vault_state;
+}
+
+async function askVaultPassphrase({ title, message, confirm = false }) {
+    const id = uuidv4();
+    const passphraseId = `vault_passphrase_${id}`;
+    const confirmId = `vault_passphrase_confirm_${id}`;
+    const container = $('<div class="flex-container flexFlowColumn"></div>');
+    container.append($('<h3></h3>').text(title));
+    container.append($('<p></p>').text(message));
+    container.append($('<input class="text_pole" autocomplete="new-password">').attr({
+        id: passphraseId,
+        type: 'password',
+        placeholder: '保险箱密码（至少 8 位）',
+    }));
+
+    if (confirm) {
+        container.append($('<input class="text_pole marginTop5" autocomplete="new-password">').attr({
+            id: confirmId,
+            type: 'password',
+            placeholder: '再次输入保险箱密码',
+        }));
+    }
+
+    let passphrase = '';
+    let repeated = '';
+    const popup = new Popup(container, POPUP_TYPE.CONFIRM, '', {
+        okButton: '继续',
+        cancelButton: '取消',
+        onOpen: () => document.getElementById(passphraseId)?.focus(),
+        onClose: () => {
+            /** @type {HTMLInputElement?} */
+            const passphraseEl = /** @type {HTMLInputElement?} */ (document.getElementById(passphraseId));
+            /** @type {HTMLInputElement?} */
+            const confirmEl = /** @type {HTMLInputElement?} */ (document.getElementById(confirmId));
+            passphrase = String(passphraseEl?.value || '');
+            repeated = String(confirmEl?.value || '');
+        },
+    });
+    const result = await popup.show();
+    if (result !== POPUP_RESULT.AFFIRMATIVE) {
+        return null;
+    }
+
+    if (passphrase.length < 8) {
+        toastr.error('保险箱密码至少需要 8 个字符。');
+        return null;
+    }
+    if (confirm && passphrase !== repeated) {
+        toastr.error('两次输入的保险箱密码不一致。');
+        return null;
+    }
+
+    return passphrase;
+}
+
+async function enableSecretVault() {
+    const passphrase = await askVaultPassphrase({
+        title: '启用 API 密钥保险箱',
+        message: '请设置一个独立的保险箱密码。启用后，已有/新增 API 密钥将加密保存；忘记该密码将无法恢复密钥。',
+        confirm: true,
+    });
+    if (!passphrase) {
+        return false;
+    }
+
+    const response = await fetch('/api/stc/privacy-vault/enable', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ passphrase }),
+    });
+
+    if (!response.ok) {
+        toastr.error('无法启用 API 密钥保险箱。');
+        return false;
+    }
+
+    const data = await response.json();
+    secret_vault_state = data.status;
+    toastr.success(`API 密钥保险箱已启用。已加密密钥数：${data.encryptedCount}`);
+    await readSecretState();
+    return true;
+}
+
+async function unlockSecretVault() {
+    const passphrase = await askVaultPassphrase({
+        title: '解锁 API 密钥保险箱',
+        message: '请输入保险箱密码，以使用或更新已保存的 API 密钥。',
+    });
+    if (!passphrase) {
+        return false;
+    }
+
+    const response = await fetch('/api/stc/privacy-vault/unlock', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ passphrase }),
+    });
+
+    if (!response.ok) {
+        toastr.error('无法解锁 API 密钥保险箱。请检查密码后重试。');
+        return false;
+    }
+
+    const data = await response.json();
+    secret_vault_state = data.status;
+    toastr.success('API 密钥保险箱已解锁。');
+    await readSecretState();
+    return true;
+}
+
+async function ensureSecretVaultReadyForWrite() {
+    const status = await readSecretVaultStatus();
+    if (status.enabled && !status.unlocked) {
+        return unlockSecretVault();
+    }
+
+    if (!status.enabled) {
+        const shouldEnable = await Popup.show.confirm(
+            '是否启用 API 密钥保险箱？',
+            '你的 API 密钥当前会以普通服务端密钥形式保存。启用保险箱后，落盘 API 密钥会被加密，服务器文件访问无法直接看到明文。',
+            { okButton: '启用', cancelButton: '暂不' },
+        );
+
+        if (shouldEnable) {
+            return enableSecretVault();
+        }
+
+        return status.requireForApiKeys !== true;
+    }
+
+    return true;
+}
+
+async function retrySecretWriteAfterVaultAction(response) {
+    if (response.status === 423) {
+        return unlockSecretVault();
+    }
+    if (response.status === 428) {
+        return enableSecretVault();
+    }
+    return false;
+}
+
+async function maybeOfferVaultMigration() {
+    await readSecretVaultStatus();
+    if (secret_vault_state.enabled || sessionStorage.getItem('stc_secret_vault_migration_prompted') === '1') {
+        return;
+    }
+
+    const hasSavedApiKeys = Object.values(SECRET_KEYS).some(key => Array.isArray(secret_state[key]) && secret_state[key].length > 0);
+    if (!hasSavedApiKeys) {
+        return;
+    }
+
+    sessionStorage.setItem('stc_secret_vault_migration_prompted', '1');
+    const shouldEnable = await Popup.show.confirm(
+        '是否加密已有的 API 密钥？',
+        '检测到你已经保存过 API 密钥，但目前仍是明文形式落盘。现在启用保险箱可将已有密钥加密保存。',
+        { okButton: '启用并加密', cancelButton: '稍后' },
+    );
+    if (shouldEnable) {
+        await enableSecretVault();
+    }
+}
+// ───────────────────────────────────────────────────────────────
+// STC-MOD: API 密钥保险箱结束
+// ───────────────────────────────────────────────────────────────
 /**
  * Write a secret value to the server.
  * @param {string} key Secret key
@@ -358,11 +550,21 @@ export async function writeSecret(key, value, label, { allowEmpty } = {}) {
             label = getLabel();
         }
 
-        const response = await fetch('/api/secrets/write', {
+        if (!await ensureSecretVaultReadyForWrite()) {
+            toastr.warning('由于必须启用保险箱，API 密钥未保存。');
+            return null;
+        }
+
+        const request = () => fetch('/api/secrets/write', {
             method: 'POST',
             headers: getRequestHeaders(),
             body: JSON.stringify({ key, value, label }),
         });
+        let response = await request();
+
+        if (!response.ok && await retrySecretWriteAfterVaultAction(response)) {
+            response = await request();
+        }
 
         if (!response.ok) {
             return null;
@@ -419,6 +621,7 @@ export async function readSecretState() {
             secret_state = await response.json();
             updateSecretDisplay();
             updateInputDataLists();
+            await maybeOfferVaultMigration();
         }
     } catch {
         console.error('Could not read secrets file');
@@ -1135,6 +1338,11 @@ function registerSecretSlashCommands() {
 }
 
 export async function initSecrets() {
+    await readSecretVaultStatus();
+    if (secret_vault_state.enabled && !secret_vault_state.unlocked) {
+        toastr.info('API 密钥保险箱已锁定。使用已保存的 API 密钥时将提示输入保险箱密码。');
+    }
+
     $('#viewSecrets').on('click', viewSecrets);
     $(document).on('click', '.manage-api-keys', async function () {
         const key = $(this).data('key');
