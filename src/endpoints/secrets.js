@@ -5,6 +5,24 @@ import express from 'express';
 import { sync as writeFileAtomicSync } from 'write-file-atomic';
 import { color, getConfigValue, uuidv4 } from '../util.js';
 
+// ───────────────────────────────────────────────────────────────
+// STC-MOD: API 密钥保险箱适配层导入开始
+// ───────────────────────────────────────────────────────────────
+import {
+    VaultLockedError,
+    VaultRequiredError,
+    decryptSecretValue,
+    encryptSecretValue,
+    getVaultStatus,
+    initializeVault,
+    isEncryptedVaultValue,
+    isVaultProtectedKey,
+    isVaultRequiredForApiKeys,
+} from '../stc-mod/services/privacy-vault.js';
+// ───────────────────────────────────────────────────────────────
+// STC-MOD: API 密钥保险箱适配层导入结束
+// ───────────────────────────────────────────────────────────────
+
 export const SECRETS_FILE = 'secrets.json';
 export const SECRET_KEYS = {
     _MIGRATED: '_migrated',
@@ -195,6 +213,53 @@ export class SecretManager {
     }
 
     /**
+     * Helper method to dispatch vault errors correctly.
+     */
+    sendVaultError(response, error) {
+        if (error instanceof VaultLockedError) {
+            return response.status(423).send({ error: true, code: 'VAULT_LOCKED', message: error.message });
+        }
+        if (error instanceof VaultRequiredError) {
+            return response.status(428).send({ error: true, code: 'VAULT_REQUIRED', message: error.message });
+        }
+        return response.status(500).send({ error: true });
+    }
+
+    /**
+     * Helper to enable vault and encrypt existing keys
+     * @param {string} passphrase 
+     * @returns {Promise<number>} Number of encrypted keys
+     */
+    async enableVault(passphrase) {
+        const isNew = initializeVault(this.directories, passphrase);
+        if (!isNew) {
+            return 0; // Already enabled
+        }
+
+        let encryptedCount = 0;
+        const secrets = this._readSecretsFile();
+        let hasChanges = false;
+
+        for (const [key, secretArray] of Object.entries(secrets)) {
+            if (isVaultProtectedKey(key) && Array.isArray(secretArray)) {
+                for (const secret of secretArray) {
+                    if (typeof secret.value === 'string' && secret.value !== '') {
+                        secret.value = encryptSecretValue(this.directories, secret.value);
+                        encryptedCount++;
+                        hasChanges = true;
+                    }
+                }
+            }
+        }
+
+        if (hasChanges) {
+            this._writeSecretsFile(secrets);
+        }
+
+        return encryptedCount;
+    }
+
+    /**
      * Writes a secret to the secrets file
      * @param {string} key Secret key
      * @param {string} value Secret value
@@ -202,6 +267,21 @@ export class SecretManager {
      * @returns {string} The ID of the newly created secret
      */
     writeSecret(key, value, label = 'Unlabeled') {
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: API 密钥保险箱写入拦截开始
+        // ───────────────────────────────────────────────────────────────
+        if (isVaultProtectedKey(key)) {
+            const status = getVaultStatus(this.directories);
+            if (status.enabled) {
+                value = encryptSecretValue(this.directories, value);
+            } else if (status.requireForApiKeys) {
+                throw new VaultRequiredError();
+            }
+        }
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: API 密钥保险箱写入拦截结束
+        // ───────────────────────────────────────────────────────────────
+
         const secrets = this._readSecretsFile();
 
         if (!Array.isArray(secrets[key])) {
@@ -263,9 +343,10 @@ export class SecretManager {
      * Reads the active secret value for a given key
      * @param {string} key Secret key
      * @param {string?} id ID of the secret to read (optional)
+     * @param {boolean} throwOnLocked If true, throws VaultLockedError instead of returning empty string
      * @returns {string} Secret value or empty string if not found
      */
-    readSecret(key, id) {
+    readSecret(key, id, throwOnLocked = false) {
         if (!fs.existsSync(this.filePath)) {
             return '';
         }
@@ -275,7 +356,30 @@ export class SecretManager {
 
         if (Array.isArray(secretArray) && secretArray.length > 0) {
             const activeSecret = secretArray.find(s => id ? s.id === id : s.active);
-            return activeSecret?.value || '';
+            let value = activeSecret?.value || '';
+
+            // ───────────────────────────────────────────────────────────────
+            // STC-MOD: API 密钥保险箱解密开始
+            // ───────────────────────────────────────────────────────────────
+            try {
+                if (isEncryptedVaultValue(value)) {
+                    value = decryptSecretValue(this.directories, value);
+                }
+            } catch (error) {
+                if (error instanceof VaultLockedError) {
+                    if (throwOnLocked) {
+                        throw error;
+                    }
+                    return ''; // Safe fallback for locked vault when reading silently
+                }
+                console.error('[STC-MOD] Vault decryption error:', error.message);
+                return '';
+            }
+            // ───────────────────────────────────────────────────────────────
+            // STC-MOD: API 密钥保险箱解密结束
+            // ───────────────────────────────────────────────────────────────
+
+            return value;
         }
 
         return '';
@@ -352,12 +456,26 @@ export class SecretManager {
             }
             const value = secrets[key];
             if (value && Array.isArray(value) && value.length > 0) {
-                state[key] = value.map(secret => ({
-                    id: secret.id,
-                    value: this.getMaskedValue(secret.value, key),
-                    label: secret.label,
-                    active: secret.active,
-                }));
+                state[key] = value.map(secret => {
+                    // ───────────────────────────────────────────────────────────────
+                    // STC-MOD: API 密钥保险箱前端显示屏蔽开始
+                    // ───────────────────────────────────────────────────────────────
+                    const isEncrypted = isEncryptedVaultValue(secret.value);
+                    const displayValue = isEncrypted 
+                        ? '*******' // Hide real encrypted payload from UI
+                        : this.getMaskedValue(secret.value, key);
+                    
+                    return {
+                        id: secret.id,
+                        value: displayValue,
+                        label: secret.label,
+                        active: secret.active,
+                        encrypted: isEncrypted, // Pass this flag to UI so it knows it's a vault key
+                    };
+                    // ───────────────────────────────────────────────────────────────
+                    // STC-MOD: API 密钥保险箱前端显示屏蔽结束
+                    // ───────────────────────────────────────────────────────────────
+                });
             } else {
                 // No secrets for this key
                 state[key] = null;
@@ -521,6 +639,16 @@ router.post('/write', (request, response) => {
 
         return response.send({ id });
     } catch (error) {
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: 捕获保险箱错误开始
+        // ───────────────────────────────────────────────────────────────
+        if (error instanceof VaultLockedError || error instanceof VaultRequiredError) {
+            const manager = new SecretManager(request.user.directories);
+            return manager.sendVaultError(response, error);
+        }
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: 捕获保险箱错误结束
+        // ───────────────────────────────────────────────────────────────
         console.error('Error writing secret:', error);
         return response.sendStatus(500);
     }
@@ -552,6 +680,16 @@ router.post('/view', (request, response) => {
 
         return response.send(secrets);
     } catch (error) {
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: 捕获保险箱错误开始
+        // ───────────────────────────────────────────────────────────────
+        if (error instanceof VaultLockedError) {
+            const manager = new SecretManager(request.user.directories);
+            return manager.sendVaultError(response, error);
+        }
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: 捕获保险箱错误结束
+        // ───────────────────────────────────────────────────────────────
         console.error('Error viewing secrets:', error);
         return response.sendStatus(500);
     }
@@ -577,9 +715,19 @@ router.post('/find', (request, response) => {
             return response.sendStatus(404);
         }
 
-        const secretValue = manager.readSecret(key, id);
+        const secretValue = manager.readSecret(key, id, true); // true = throwOnLocked
         return response.send({ value: secretValue });
     } catch (error) {
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: 捕获保险箱错误开始
+        // ───────────────────────────────────────────────────────────────
+        if (error instanceof VaultLockedError) {
+            const manager = new SecretManager(request.user.directories);
+            return manager.sendVaultError(response, error);
+        }
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: 捕获保险箱错误结束
+        // ───────────────────────────────────────────────────────────────
         console.error('Error finding secret:', error);
         return response.sendStatus(500);
     }

@@ -181,5 +181,9 @@ export async function setupPrivateRoutes(app) {
     const { router: scheduledTasksRouter } = await import('./routes/private/scheduled-tasks.js');
     app.use('/api/stc/scheduled-tasks', scheduledTasksRouter);
 
+    // Privacy vault (user API keys)
+    const { router: privacyVaultRouter } = await import('./routes/private/privacy-vault.js');
+    app.use('/api/stc/privacy-vault', privacyVaultRouter);
+
     console.log('[STC-MOD] Private API routes registered.');
 }
