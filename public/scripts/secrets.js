@@ -468,7 +468,9 @@ async function unlockSecretVault() {
     const data = await response.json();
     secret_vault_state = data.status;
     toastr.success('API 密钥保险箱已解锁。');
-    await readSecretState();
+    
+    // We intentionally do not await readSecretState here to avoid infinite loops if readSecretState itself calls unlockSecretVault
+    readSecretState().catch(console.error);
     return true;
 }
 
@@ -612,10 +614,20 @@ export async function deleteSecret(key, id) {
  */
 export async function readSecretState() {
     try {
-        const response = await fetch('/api/secrets/read', {
+        const request = () => fetch('/api/secrets/read', {
             method: 'POST',
             headers: getRequestHeaders({ omitContentType: true }),
         });
+        let response = await request();
+
+        if (response.status === 423) {
+            const unlocked = await unlockSecretVault();
+            if (unlocked) {
+                response = await request();
+            } else {
+                return;
+            }
+        }
 
         if (response.ok) {
             secret_state = await response.json();
@@ -636,11 +648,25 @@ export async function readSecretState() {
  */
 export async function findSecret(key, id) {
     try {
-        const response = await fetch('/api/secrets/find', {
+        let response = await fetch('/api/secrets/find', {
             method: 'POST',
             headers: getRequestHeaders(),
             body: JSON.stringify({ key, id }),
         });
+
+        // STC-MOD: Intercept 423 Locked
+        if (response.status === 423) {
+            const unlocked = await unlockSecretVault();
+            if (unlocked) {
+                response = await fetch('/api/secrets/find', {
+                    method: 'POST',
+                    headers: getRequestHeaders(),
+                    body: JSON.stringify({ key, id }),
+                });
+            } else {
+                return null;
+            }
+        }
 
         if (!response.ok) {
             return null;
@@ -904,8 +930,19 @@ async function openKeyManagerDialog(key) {
 
         const itemBlocks = [];
         for (const secret of secrets) {
-            const itemTemplate = $(await renderTemplateAsync('secretKeyManagerListItem', secret));
-            itemTemplate.find('[data-action="copy-id"]').on('click', async function () {
+                const itemTemplate = $(await renderTemplateAsync('secretKeyManagerListItem', secret));
+                
+                // STC-MOD: Add unlock button if this specific secret is encrypted but vault is locked
+                if (secret.encrypted && (!secret_vault_state.enabled || !secret_vault_state.unlocked)) {
+                    const unlockBtn = $('<button class="menu_button interactable" title="解锁保险箱以使用此密钥"><i class="fa-solid fa-lock"></i> 解锁</button>');
+                    unlockBtn.on('click', async function() {
+                        await unlockSecretVault();
+                        await renderSecretsList(); // re-render after unlock attempt
+                    });
+                    itemTemplate.find('.flex-container.alignitemscenter.gap5').prepend(unlockBtn);
+                }
+
+                itemTemplate.find('[data-action="copy-id"]').on('click', async function () {
                 await copyText(secret.id);
                 toastr.info(t`Secret ID copied to clipboard.`);
             });
@@ -1340,10 +1377,29 @@ function registerSecretSlashCommands() {
 export async function initSecrets() {
     await readSecretVaultStatus();
     if (secret_vault_state.enabled && !secret_vault_state.unlocked) {
-        toastr.info('API 密钥保险箱已锁定。使用已保存的 API 密钥时将提示输入保险箱密码。');
+        // Helper API exposed on window so it can be called easily
+        window.unlockSecretVault = unlockSecretVault;
+        
+        // Use popup notification instead of just toastr
+        const promptUnlock = async () => {
+            const wantUnlock = await Popup.show.confirm(
+                'API 密钥保险箱已锁定',
+                '您的 API 密钥保险箱目前处于锁定状态。是否立即输入密码解锁以继续使用保存的 API 密钥？',
+                { okButton: '立即解锁', cancelButton: '稍后' }
+            );
+            if (wantUnlock) {
+                unlockSecretVault();
+            }
+        };
+        setTimeout(promptUnlock, 500);
     }
 
-    $('#viewSecrets').on('click', viewSecrets);
+    $('#viewSecrets').on('click', async function () {
+        if (!await ensureSecretVaultReadyForWrite()) {
+            return;
+        }
+        viewSecrets();
+    });
     $(document).on('click', '.manage-api-keys', async function () {
         const key = $(this).data('key');
         if (!key || !Object.values(SECRET_KEYS).includes(key)) {
