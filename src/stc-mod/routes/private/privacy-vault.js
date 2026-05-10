@@ -107,3 +107,41 @@ router.post('/lock', (request, response) => {
         return response.status(500).send({ error: true, message: 'Internal server error' });
     }
 });
+
+/**
+ * Endpoint to reset (forget password) the vault.
+ *
+ * This is a destructive action: the vault record is deleted and every
+ * vault-encrypted API key in secrets.json is removed. The user must
+ * explicitly confirm by sending `{ confirm: 'RESET' }` in the body, so
+ * accidental clicks cannot wipe keys.
+ *
+ * After reset, the user can either:
+ *   - re-enable the vault with a new passphrase (and re-enter keys), or
+ *   - continue to save keys as plaintext (only if `requireForApiKeys`
+ *     is false in config.yaml).
+ */
+router.post('/reset', (request, response) => {
+    try {
+        const directories = request.user.directories;
+        const confirm = request.body?.confirm;
+
+        if (confirm !== 'RESET') {
+            return response.status(400).send({
+                error: true,
+                message: 'Reset must be confirmed with {"confirm":"RESET"}.',
+            });
+        }
+
+        const sm = new SecretManager(directories);
+        const { existed, removedKeys } = sm.resetVaultAndClearEncryptedKeys();
+        const status = getVaultStatus(directories);
+
+        console.log(`[STC-MOD] Vault: User ${directories.user} reset vault (existed=${existed}, removedKeys=${removedKeys}).`);
+
+        return response.json({ success: true, existed, removedKeys, status });
+    } catch (error) {
+        console.error('[STC-MOD] Vault /reset error:', error);
+        return response.status(500).send({ error: true, message: error.message });
+    }
+});

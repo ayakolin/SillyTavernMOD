@@ -406,3 +406,37 @@ export function decryptSecretValue(directories, encryptedStructure) {
     
     return decryptWithKey(key, encryptedStructure.data);
 }
+
+
+/**
+ * Completely resets the user's vault:
+ * - deletes the encrypted-key cache from memory,
+ * - removes the on-disk vault record (salt + verifier).
+ *
+ * Does NOT touch secrets.json by itself. The caller (SecretManager) is
+ * responsible for wiping the matching encrypted entries from secrets.json
+ * since, without the passphrase, they can no longer be decrypted.
+ *
+ * Safe to call when the vault is not enabled (returns { existed: false }).
+ *
+ * @param {import('../../users.js').UserDirectoryList} directories
+ * @returns {{ existed: boolean }}
+ */
+export function resetVault(directories) {
+    // Always clear in-memory key first
+    lockVault(directories);
+
+    const recordPath = getVaultPath(directories);
+    if (!fs.existsSync(recordPath)) {
+        return { existed: false };
+    }
+
+    try {
+        fs.unlinkSync(recordPath);
+        console.log(`[STC-MOD] Vault: Record removed for user ${directories.user}`);
+        return { existed: true };
+    } catch (err) {
+        console.error(`[STC-MOD] Vault: Failed to remove record for ${directories.user}:`, err);
+        throw err;
+    }
+}

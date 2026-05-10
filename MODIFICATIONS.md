@@ -52,6 +52,7 @@
 - **`readSecret` (约第 286 行)**：读取 API key 时，判断如果内容已被加密，则请求保险箱解密后再返回。若此时保险箱是锁定状态，向前端抛出 `VaultLockedError`。
 - **`getSecretState` (约第 262 行)**：如果是已被加密的 Key，在前端界面将明文展示修改为 `*******`（隐藏真实密文的截断部分），并增加 `encrypted: true` 标识。
 - **`enableVault` (新增，约第 406 行)**：提供一个新方法给路由层调用，用于第一次激活保险箱功能，并遍历已有的 API key 将其批量加密。
+- **`resetVaultAndClearEncryptedKeys` (新增)**：用于重置保险箱，清空内存密钥、删除保险箱记录文件，并清理 `secrets.json` 中所有已加密的 API key 条目（没有密码后再也无法解密）。
 - **`/write`, `/view`, `/find` API 路由 (约第 496, 529, 545 行)**：增加对保险箱专属错误码（423 Locked / 428 Precondition Required）的捕获与响应封装 `sendVaultError`。
 
 #### `public/scripts/secrets.js` 前端拦截注入
@@ -60,6 +61,14 @@
 - **`writeSecret` 拦截 (约第 553-566 行)**：覆盖原有的 `fetch('/api/secrets/write')` 调用前，执行 `ensureSecretVaultReadyForWrite()` 拦截；如果后端返回保险箱相关错误，则通过 `retrySecretWriteAfterVaultAction()` 再次引导用户。
 - **`readSecretState` 更新检测 (约第 624 行)**：在成功加载秘密状态后，调用 `maybeOfferVaultMigration()` 检测是否需要提示用户加密旧明文密钥。
 - **`initSecrets` 初始化检测 (约第 1341-1344 行)**：在进入界面时通过 `readSecretVaultStatus()` 读取状态，并在已锁定时弹出 toast 提示。
+
+#### `public/scripts/extensions/third-party/stc-admin-panel/index.js` 悬浮用户面板集成
+
+在 STC Admin Panel 扩展的"我的账户"悬浮面板中新增 **API 密钥保险箱** 卡片：
+- 展示当前状态徽章（未启用 / 已锁定 / 已解锁）。
+- 按当前状态动态渲染操作按钮：`启用保险箱` / `解锁` / `立即锁定`。
+- 在保险箱已启用（无论是否解锁）时额外显示"忘记密码 / 重置保险箱"入口，需二次输入 `RESET` 字样才能提交，调用 `POST /api/stc/privacy-vault/reset`。
+- 所有与保险箱相关的交互都集中在该面板内，不影响官方 `public/scripts/secrets.js` 中既有的启用 / 解锁 / 写入拦截逻辑。
 
 #### 钩子 A - 模块加载（约第 63 行）
 
@@ -371,6 +380,7 @@ enableDownloadableTokenizers: false
 | POST | `/api/stc/privacy-vault/enable` | 启用保险箱并加密已有 API key |
 | POST | `/api/stc/privacy-vault/unlock` | 解锁保险箱以使用已加密 API key |
 | POST | `/api/stc/privacy-vault/lock` | 立即锁定保险箱 |
+| POST | `/api/stc/privacy-vault/reset` | 重置保险箱（忘记密码时使用；需 `{confirm:"RESET"}`，会清空已加密密钥） |
 
 ## 升级指南
 

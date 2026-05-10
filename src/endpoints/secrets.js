@@ -18,6 +18,7 @@ import {
     isEncryptedVaultValue,
     isVaultProtectedKey,
     isVaultRequiredForApiKeys,
+    resetVault,
 } from '../stc-mod/services/privacy-vault.js';
 // ───────────────────────────────────────────────────────────────
 // STC-MOD: API 密钥保险箱适配层导入结束
@@ -257,6 +258,58 @@ export class SecretManager {
         }
 
         return encryptedCount;
+    }
+
+    /**
+     * Resets the user's vault:
+     * - removes the on-disk vault record (salt + verifier),
+     * - clears the in-memory derived key,
+     * - deletes every encrypted secret entry from secrets.json (they would
+     *   otherwise be unreadable forever since we no longer have the passphrase).
+     * Plaintext entries are preserved.
+     *
+     * @returns {{ existed: boolean, removedKeys: number }}
+     */
+    resetVaultAndClearEncryptedKeys() {
+        const { existed } = resetVault(this.directories);
+
+        // Even if the vault wasn't enabled, proactively scrub any stale
+        // encrypted entries that might exist in secrets.json.
+        let removedKeys = 0;
+
+        if (fs.existsSync(this.filePath)) {
+            const secrets = this._readSecretsFile();
+            let hasChanges = false;
+
+            for (const [key, secretArray] of Object.entries(secrets)) {
+                if (!Array.isArray(secretArray)) continue;
+
+                const kept = secretArray.filter(s => {
+                    const encrypted = isEncryptedVaultValue(s.value);
+                    if (encrypted) removedKeys++;
+                    return !encrypted;
+                });
+
+                if (kept.length !== secretArray.length) {
+                    hasChanges = true;
+                    if (kept.length === 0) {
+                        delete secrets[key];
+                    } else {
+                        // If we dropped the active one, promote the first remaining.
+                        if (!kept.some(s => s.active)) {
+                            kept[0].active = true;
+                        }
+                        secrets[key] = kept;
+                    }
+                }
+            }
+
+            if (hasChanges) {
+                this._writeSecretsFile(secrets);
+            }
+        }
+
+        return { existed, removedKeys };
     }
 
     /**

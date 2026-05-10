@@ -878,6 +878,37 @@ function buildUserPanelContent(purchaseLink = '') {
         wrap.appendChild(storageCard);
     }
 
+    // ━━━━ 4b. API 密钥保险箱 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const vaultCard = document.createElement('div');
+    vaultCard.id = 'stc-vault-card';
+    vaultCard.style.cssText = CARD;
+    vaultCard.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div style="font-weight:600;font-size:.88em;opacity:.7;display:flex;align-items:center;gap:6px">
+                <i class="fa-solid fa-shield-halved"></i> API 密钥保险箱
+            </div>
+            <div id="stc-vault-badge" style="padding:3px 10px;border-radius:20px;font-size:.78em;font-weight:600;
+                background:rgba(127,127,127,.12);border:1px solid rgba(127,127,127,.3);opacity:.75;
+                display:inline-flex;align-items:center;gap:5px">
+                <i class="fa-solid fa-ellipsis"></i> 加载中…
+            </div>
+        </div>
+        <div id="stc-vault-hint" style="font-size:.8em;opacity:.6;line-height:1.5">
+            启用后，API 密钥将使用你单独设置的保险箱密码加密落盘，服务器运维无法直接读取明文。
+        </div>
+        <div id="stc-vault-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+        </div>
+        <div id="stc-vault-reset-row" style="display:none;border-top:1px dashed var(--SmartThemeBorderColor,rgba(255,255,255,.12));padding-top:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:.78em;opacity:.55;line-height:1.5">
+                忘记保险箱密码时可重置：<strong style="color:#e74c3c">当前保险箱内所有已加密的 API 密钥将被一并删除</strong>，需要你重新录入。
+            </div>
+            <button id="stc-vault-reset-btn" class="menu_button"
+                style="padding:7px 14px;font-size:.84em;background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.4)">
+                <i class="fa-solid fa-triangle-exclamation"></i> 忘记密码 / 重置保险箱
+            </button>
+        </div>`;
+    wrap.appendChild(vaultCard);
+
     // ━━━━ 5. Message area ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const msgArea = document.createElement('div');
     msgArea.id = 'stc-panel-msg';
@@ -975,6 +1006,223 @@ function bindUserPanelButtons(content, popup) {
             }
         } catch (e) { showMsg('请求失败: ' + e.message, false); }
     });
+
+    // ── API 密钥保险箱 ──────────────────────────────────────
+    wireVaultCard(content, showMsg, popup);
+}
+
+/**
+ * Prompt the user for a vault passphrase via ST's Popup system.
+ * @param {{ title: string, message: string, confirm?: boolean }} opts
+ * @returns {Promise<string|null>}
+ */
+async function askVaultPassphrase({ title, message, confirm = false }) {
+    const { Popup, POPUP_TYPE, POPUP_RESULT } = await import('/scripts/popup.js');
+    const id = Math.random().toString(36).slice(2);
+    const pwId = `stc-vault-pw-${id}`;
+    const cfId = `stc-vault-pw-confirm-${id}`;
+    const container = document.createElement('div');
+    container.className = 'flex-container flexFlowColumn';
+    container.innerHTML = `
+        <h3 style="margin:0 0 6px">${esc(title)}</h3>
+        <p style="margin:0 0 10px;opacity:.8;font-size:.9em;line-height:1.5">${esc(message)}</p>
+        <input id="${pwId}" type="password" class="text_pole" autocomplete="new-password"
+            placeholder="保险箱密码（至少 8 位）">
+        ${confirm ? `<input id="${cfId}" type="password" class="text_pole" style="margin-top:6px" autocomplete="new-password"
+            placeholder="再次输入保险箱密码">` : ''}`;
+
+    let pw = '', cf = '';
+    const popup = new Popup(container, POPUP_TYPE.CONFIRM, '', {
+        okButton: '继续',
+        cancelButton: '取消',
+        onOpen: () => document.getElementById(pwId)?.focus(),
+        onClose: () => {
+            pw = document.getElementById(pwId)?.value || '';
+            cf = document.getElementById(cfId)?.value || '';
+        },
+    });
+
+    const result = await popup.show();
+    if (result !== POPUP_RESULT.AFFIRMATIVE) return null;
+    if (pw.length < 8) { toastr.error('保险箱密码至少需要 8 个字符。'); return null; }
+    if (confirm && pw !== cf) { toastr.error('两次输入的保险箱密码不一致。'); return null; }
+    return pw;
+}
+
+/**
+ * Fetch current vault status and render the actions + badge into the panel.
+ */
+async function wireVaultCard(content, showMsg, parentPopup) {
+    const card = content.querySelector('#stc-vault-card');
+    if (!card) return;
+    const badgeEl = card.querySelector('#stc-vault-badge');
+    const hintEl = card.querySelector('#stc-vault-hint');
+    const actionsEl = card.querySelector('#stc-vault-actions');
+    const resetRowEl = card.querySelector('#stc-vault-reset-row');
+    const resetBtn = card.querySelector('#stc-vault-reset-btn');
+
+    const setBadge = (html, fg, bg, border) => {
+        badgeEl.innerHTML = html;
+        badgeEl.style.color = fg;
+        badgeEl.style.background = bg;
+        badgeEl.style.border = `1px solid ${border}`;
+        badgeEl.style.opacity = '1';
+    };
+
+    const renderActions = (status) => {
+        actionsEl.innerHTML = '';
+        const mkBtn = (id, label, icon, extraStyle = '') => {
+            const b = document.createElement('button');
+            b.id = id;
+            b.className = 'menu_button';
+            b.style.cssText = `padding:8px 14px;font-size:.85em;white-space:nowrap;${extraStyle}`;
+            b.innerHTML = `<i class="fa-solid ${icon}"></i> ${label}`;
+            actionsEl.appendChild(b);
+            return b;
+        };
+
+        if (!status.enabled) {
+            mkBtn('stc-vault-enable-btn', '启用保险箱', 'fa-lock-open');
+            hintEl.innerHTML = '启用后，已保存的 API 密钥会被加密，新保存的密钥也会自动加密。忘记密码将无法恢复密钥。';
+            resetRowEl.style.display = 'none';
+        } else if (status.unlocked) {
+            mkBtn('stc-vault-lock-btn', '立即锁定', 'fa-lock');
+            const exp = status.expiresAt
+                ? new Date(status.expiresAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+                : null;
+            hintEl.innerHTML = exp
+                ? `保险箱已解锁，将在 <strong>${exp}</strong> 左右到期自动锁定（活动访问会自动续期）。`
+                : '保险箱已解锁。';
+            resetRowEl.style.display = 'flex';
+        } else {
+            mkBtn('stc-vault-unlock-btn', '解锁', 'fa-key');
+            hintEl.innerHTML = '保险箱已启用但处于锁定状态。使用或更新 API 密钥前需要先输入保险箱密码解锁。';
+            resetRowEl.style.display = 'flex';
+        }
+    };
+
+    const refresh = async () => {
+        try {
+            const r = await fetch('/api/stc/privacy-vault/status', {
+                method: 'POST', headers: await getCsrfHeaders(),
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const status = await r.json();
+
+            if (!status.enabled) {
+                setBadge('<i class="fa-solid fa-circle-exclamation"></i> 未启用', '#f39c12', 'rgba(243,156,18,.1)', 'rgba(243,156,18,.3)');
+            } else if (status.unlocked) {
+                setBadge('<i class="fa-solid fa-lock-open"></i> 已解锁', '#2ecc71', 'rgba(46,204,113,.12)', 'rgba(46,204,113,.3)');
+            } else {
+                setBadge('<i class="fa-solid fa-lock"></i> 已锁定', '#4a90e2', 'rgba(74,144,226,.12)', 'rgba(74,144,226,.3)');
+            }
+
+            renderActions(status);
+            wireActionButtons(status);
+        } catch (e) {
+            setBadge('<i class="fa-solid fa-triangle-exclamation"></i> 状态未知', '#e74c3c', 'rgba(231,76,60,.1)', 'rgba(231,76,60,.3)');
+            hintEl.textContent = '无法读取保险箱状态：' + e.message;
+            actionsEl.innerHTML = '';
+            resetRowEl.style.display = 'none';
+        }
+    };
+
+    const wireActionButtons = (status) => {
+        card.querySelector('#stc-vault-enable-btn')?.addEventListener('click', async () => {
+            const pw = await askVaultPassphrase({
+                title: '启用 API 密钥保险箱',
+                message: '请设置一个独立的保险箱密码。启用后，已保存的 API 密钥会被加密保存；忘记该密码将无法恢复密钥。',
+                confirm: true,
+            });
+            if (!pw) return;
+            try {
+                const r = await fetch('/api/stc/privacy-vault/enable', {
+                    method: 'POST', headers: await getCsrfHeaders(),
+                    body: JSON.stringify({ passphrase: pw }),
+                });
+                const d = await r.json();
+                if (!r.ok || !d.success) throw new Error(d.message || '启用失败');
+                showMsg(`保险箱已启用，已加密密钥数：${d.encryptedCount ?? 0}`);
+                await refresh();
+            } catch (e) { showMsg('启用失败：' + e.message, false); }
+        });
+
+        card.querySelector('#stc-vault-unlock-btn')?.addEventListener('click', async () => {
+            const pw = await askVaultPassphrase({
+                title: '解锁 API 密钥保险箱',
+                message: '请输入保险箱密码，以使用或更新已保存的 API 密钥。',
+            });
+            if (!pw) return;
+            try {
+                const r = await fetch('/api/stc/privacy-vault/unlock', {
+                    method: 'POST', headers: await getCsrfHeaders(),
+                    body: JSON.stringify({ passphrase: pw }),
+                });
+                const d = await r.json();
+                if (r.status === 401) { showMsg('密码不正确。', false); return; }
+                if (!r.ok || !d.success) throw new Error(d.message || '解锁失败');
+                showMsg('保险箱已解锁。');
+                await refresh();
+            } catch (e) { showMsg('解锁失败：' + e.message, false); }
+        });
+
+        card.querySelector('#stc-vault-lock-btn')?.addEventListener('click', async () => {
+            try {
+                const r = await fetch('/api/stc/privacy-vault/lock', {
+                    method: 'POST', headers: await getCsrfHeaders(),
+                });
+                const d = await r.json();
+                if (!r.ok || !d.success) throw new Error(d.message || '锁定失败');
+                showMsg('保险箱已立即锁定。');
+                await refresh();
+            } catch (e) { showMsg('锁定失败：' + e.message, false); }
+        });
+    };
+
+    resetBtn?.addEventListener('click', async () => {
+        const { Popup, POPUP_TYPE, POPUP_RESULT } = await import('/scripts/popup.js');
+        const confirmInputId = `stc-vault-reset-confirm-${Math.random().toString(36).slice(2)}`;
+        const box = document.createElement('div');
+        box.className = 'flex-container flexFlowColumn';
+        box.innerHTML = `
+            <h3 style="margin:0 0 6px;color:#e74c3c">重置 API 密钥保险箱</h3>
+            <p style="margin:0 0 8px;font-size:.92em;line-height:1.55">
+                此操作会：
+            </p>
+            <ul style="margin:0 0 10px 18px;font-size:.88em;line-height:1.65;opacity:.85">
+                <li>删除当前保险箱记录（密码、盐、校验数据）；</li>
+                <li><strong style="color:#e74c3c">清空所有已加密的 API 密钥</strong>（因为没有密码后再也无法解密）；</li>
+                <li>保留未加密的明文密钥和非 API key 类型的秘密数据。</li>
+            </ul>
+            <p style="margin:0 0 6px;font-size:.88em;opacity:.85">请在下方输入 <code>RESET</code> 确认执行：</p>
+            <input id="${confirmInputId}" class="text_pole" autocomplete="off" placeholder="输入 RESET 以确认">`;
+        let typed = '';
+        const popup = new Popup(box, POPUP_TYPE.CONFIRM, '', {
+            okButton: '确认重置',
+            cancelButton: '取消',
+            onOpen: () => document.getElementById(confirmInputId)?.focus(),
+            onClose: () => { typed = document.getElementById(confirmInputId)?.value || ''; },
+        });
+        const result = await popup.show();
+        if (result !== POPUP_RESULT.AFFIRMATIVE) return;
+        if (typed.trim() !== 'RESET') {
+            showMsg('未输入 RESET，已取消重置。', false);
+            return;
+        }
+
+        try {
+            const r = await fetch('/api/stc/privacy-vault/reset', {
+                method: 'POST', headers: await getCsrfHeaders(),
+                body: JSON.stringify({ confirm: 'RESET' }),
+            });
+            const d = await r.json();
+            if (!r.ok || !d.success) throw new Error(d.message || '重置失败');
+            showMsg(`保险箱已重置${d.removedKeys ? `，已清理 ${d.removedKeys} 条加密密钥` : ''}。请重新录入所需的 API 密钥。`);
+            await refresh();
+        } catch (e) { showMsg('重置失败：' + e.message, false); }
+    });
+
+    refresh();
 }
 
 // ── Admin Panel Buttons ───────────────────────────────────────
