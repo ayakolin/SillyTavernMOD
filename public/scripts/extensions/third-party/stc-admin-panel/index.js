@@ -898,12 +898,12 @@ function buildUserPanelContent(purchaseLink = '') {
         </div>
         <div id="stc-vault-actions" style="display:flex;gap:8px;flex-wrap:wrap">
         </div>
-        <div id="stc-vault-reset-row" style="display:none;border-top:1px dashed var(--SmartThemeBorderColor,rgba(255,255,255,.12));padding-top:10px;display:flex;flex-direction:column;gap:6px">
-            <div style="font-size:.78em;opacity:.55;line-height:1.5">
+        <div id="stc-vault-reset-row" style="display:none;border-top:1px dashed var(--SmartThemeBorderColor,rgba(255,255,255,.12));padding-top:10px;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="font-size:.78em;opacity:.55;line-height:1.5;flex:1 1 200px;min-width:0">
                 忘记保险箱密码时可重置：<strong style="color:#e74c3c">当前保险箱内所有已加密的 API 密钥将被一并删除</strong>，需要你重新录入。
             </div>
             <button id="stc-vault-reset-btn" class="menu_button"
-                style="padding:7px 14px;font-size:.84em;background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.4)">
+                style="padding:7px 14px;font-size:.84em;background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.4);white-space:nowrap;flex:0 0 auto">
                 <i class="fa-solid fa-triangle-exclamation"></i> 忘记密码 / 重置保险箱
             </button>
         </div>`;
