@@ -660,6 +660,16 @@ router.post('/read', (request, response) => {
         const state = manager.getSecretState();
         return response.send(state);
     } catch (error) {
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: 捕获保险箱错误开始
+        // ───────────────────────────────────────────────────────────────
+        if (error instanceof VaultLockedError) {
+            const manager = new SecretManager(request.user.directories);
+            return manager.sendVaultError(response, error);
+        }
+        // ───────────────────────────────────────────────────────────────
+        // STC-MOD: 捕获保险箱错误结束
+        // ───────────────────────────────────────────────────────────────
         console.error('Error reading secret state:', error);
         return response.send({});
     }

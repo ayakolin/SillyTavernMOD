@@ -13,7 +13,7 @@ export const VAULT_VALUE_MARKER = '__stc_vault_value';
 // Versioning for future algorithm rotation
 const VAULT_RECORD_VERSION = 1;
 const VERIFIER_PLAINTEXT = 'stc-secrets-vault-verifier:v1';
-const DEFAULT_UNLOCK_TTL_MINUTES = 480;
+const DEFAULT_UNLOCK_TTL_MINUTES = 1440;
 
 // In-memory cache of unlocked keys (never written to disk, lost on restart)
 // Map<VaultId, { key: Buffer, expiresAt: number }>

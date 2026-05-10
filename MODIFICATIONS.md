@@ -284,7 +284,7 @@ userStorage:
 privacy:
   secretsVault:
     requireForApiKeys: true          # 是否强制保存 API key 前启用保险箱
-    unlockTtlMinutes: 480            # 保险箱解锁后服务端内存密钥保留时间
+    unlockTtlMinutes: 1440           # 保险箱解锁后服务端内存密钥保留时间 (24小时)
 ```
 
 ## 部署与性能相关默认配置
