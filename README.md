@@ -198,6 +198,39 @@ docker compose down
 docker compose up -d
 ```
 
+### 方式三：纯 `docker` 用户的更新（无 compose）
+
+如果一开始用的是 [方式一](#方式一直接使用-docker-run当前目录相对路径) 的 `docker run`（没有 compose 文件），
+也可以用下面几条命令把容器升到 Docker Hub 上的最新镜像：
+
+```bash
+# 1. 拉取 Docker Hub 上的最新镜像
+docker pull zhaiker/sillytavernmod:latest
+
+# 2. 停止并删除旧容器（挂载的 config/data/plugins/extensions 不会被删除）
+docker stop sillytavernmod && docker rm sillytavernmod
+
+# 3. 用之前完全相同的 `docker run ...` 命令重新启动（见方式一）
+#    比如：
+docker run -d \
+  --name sillytavernmod \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  -v ./config:/home/node/app/config \
+  -v ./data:/home/node/app/data \
+  -v ./plugins:/home/node/app/plugins \
+  -v ./extensions:/home/node/app/public/scripts/extensions/third-party \
+  zhaiker/sillytavernmod:latest
+```
+
+> 仓库的默认分支（`release`）每次有新提交时，GitHub Actions 会自动构建 `linux/amd64` + `linux/arm64`
+> 多架构镜像并推送到 Docker Hub：
+>
+> - `zhaiker/sillytavernmod:latest` — 最新版（推荐普通用户使用）
+> - `zhaiker/sillytavernmod:release-<短 SHA>` — 便于回退到某一次具体构建
+>
+> 普通用户无需自己 `git pull` / 重新构建，只要 `docker pull ... :latest` 然后重启容器即可拿到更新。
+
 ### Docker 部署后：首次登录与关闭 Basic Auth
 
 1. **通过 Basic Auth 进入站点**
