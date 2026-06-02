@@ -64,11 +64,27 @@
 
 #### `public/scripts/extensions/third-party/stc-admin-panel/index.js` 悬浮用户面板集成
 
-在 STC Admin Panel 扩展的"我的账户"悬浮面板中新增 **API 密钥保险箱** 卡片：
+在 STC Admin Panel 扩展的"我的账户"悬浮面板中新增功能卡片：
+
+**API 密钥保险箱** 卡片：
 - 展示当前状态徽章（未启用 / 已锁定 / 已解锁）。
 - 按当前状态动态渲染操作按钮：`启用保险箱` / `解锁` / `立即锁定`。
 - 在保险箱已启用（无论是否解锁）时额外显示"忘记密码 / 重置保险箱"入口，需二次输入 `RESET` 字样才能提交，调用 `POST /api/stc/privacy-vault/reset`。
 - 所有与保险箱相关的交互都集中在该面板内，不影响官方 `public/scripts/secrets.js` 中既有的启用 / 解锁 / 写入拦截逻辑。
+
+**密码安全** 卡片（新增）：
+- 展示当前密码状态徽章（未设置 / 已设置）。
+- OAuth 用户显示注册来源（GitHub/Discord/LinuxDO）并提示可设置密码用于用户名密码登录。
+- 动态渲染操作按钮：`设置密码`（未设置时）/ `修改密码`（已设置时）。
+- 设置/修改密码通过弹窗输入，要求至少 8 位字符。
+- 修改密码时需验证当前密码。
+- 成功后提示用户可使用用户名和刚设置的密码登录。
+
+**密码提醒 Toast**（新增）：
+- OAuth 用户首次登录后，若未设置密码，延迟 3 秒显示温馨提示 Toast。
+- 每天每个会话只提示一次（使用 sessionStorage 防重）。
+- 提供"立即设置"按钮（打开用户面板）和"稍后提醒"按钮。
+- 15 秒后自动消失。
 
 #### 钩子 A - 模块加载（约第 63 行）
 
@@ -214,6 +230,7 @@ src/stc-mod/
 │       ├── system-load.js           # 系统监控（管理员）
 │       ├── user-storage.js          # 存储空间管理（管理员）
 │       ├── privacy-vault.js         # API 密钥保险箱（用户）
+│       ├── set-password.js          # 密码管理（用户）
 │       ├── default-config.js        # 默认模板管理（管理员）
 │       └── scheduled-tasks.js       # 定时任务（管理员）
 ├── services/
@@ -237,7 +254,7 @@ src/stc-mod/
 
 | 文件/目录 | 内容 |
 |-----------|------|
-| `user-metadata.json` | 扩展用户字段（OAuth ID、邮箱、过期时间、存储限额等） |
+| `user-metadata.json` | 扩展用户字段（OAuth ID、邮箱、过期时间、存储限额、密码状态等） |
 | `invitation-codes.json` | 邀请码数据 |
 | `storage-codes.json` | 存储激活码数据 |
 | `announcements/` | 公告数据 |
@@ -347,6 +364,9 @@ enableDownloadableTokenizers: false
 | GET | `/api/stc/users/storage` | 获取存储信息 |
 | POST | `/api/stc/users/check-in` | 每日签到 |
 | POST | `/api/stc/users/use-storage-code` | 使用存储激活码 |
+| GET | `/api/stc/users/password-status` | 检查当前用户密码状态 |
+| POST | `/api/stc/users/set-password` | 设置/修改密码（首次设置或修改） |
+| POST | `/api/stc/users/verify-password` | 验证当前密码 |
 | GET | `/api/stc/announcements/current` | 获取当前公告 |
 
 ### 管理员 API

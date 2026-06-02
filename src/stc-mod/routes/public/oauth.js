@@ -132,6 +132,8 @@ router.get('/:provider/callback', async (req, res) => {
             createdAt: Date.now(),
             lastLoginAt: Date.now(),
             storageLimitMiB: isStorageLimitEnabled() ? getDefaultLimitMiB() : undefined,
+            hasPassword: false,
+            registrationMethod: providerStr,
         });
 
         if (getTemplateMeta()) {
@@ -199,6 +201,8 @@ router.post('/complete-registration', async (req, res) => {
             createdAt: Date.now(),
             lastLoginAt: Date.now(),
             storageLimitMiB: isStorageLimitEnabled() ? getDefaultLimitMiB() : undefined,
+            hasPassword: false,
+            registrationMethod: providerStr,
         });
 
         if (getTemplateMeta()) {

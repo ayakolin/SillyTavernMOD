@@ -52,6 +52,9 @@ function saveMetadata() {
  * @property {number} [createdAt] - Registration timestamp
  * @property {number} [lastLoginAt] - Last login timestamp
  * @property {string} [inviteCodeUsed] - Invite code used for registration
+ * @property {boolean} [hasPassword] - Whether user has set a password (for OAuth users)
+ * @property {number} [passwordSetAt] - Timestamp when password was set/updated
+ * @property {string} [registrationMethod] - Registration method: 'local' | 'github' | 'discord' | 'linuxdo'
  */
 
 /**

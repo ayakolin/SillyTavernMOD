@@ -185,5 +185,9 @@ export async function setupPrivateRoutes(app) {
     const { router: privacyVaultRouter } = await import('./routes/private/privacy-vault.js');
     app.use('/api/stc/privacy-vault', privacyVaultRouter);
 
+    // Password management (user)
+    const { router: setPasswordRouter } = await import('./routes/private/set-password.js');
+    app.use('/api/stc/users', setPasswordRouter);
+
     console.log('[STC-MOD] Private API routes registered.');
 }

@@ -168,6 +168,83 @@ function showExpiryWarningToast(info) {
     }, 12000);
 }
 
+// ── Password Reminder Toast (OAuth users without password) ───
+function showPasswordReminderToast(info) {
+    // Only show for OAuth users without password
+    if (!info?.oauthProvider) return; // not OAuth user
+    if (info.hasPassword) return; // already has password
+
+    // Deduplicate: only show once per session per day
+    const storageKey = `stc_password_reminded_${new Date().toISOString().split('T')[0]}`;
+    if (sessionStorage.getItem(storageKey)) return;
+    sessionStorage.setItem(storageKey, '1');
+
+    // Delay 3 seconds after page load
+    setTimeout(() => {
+        document.getElementById('stc-password-toast')?.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'stc-password-toast';
+        const bottomOffset = document.getElementById('stc-quota-toast') || document.getElementById('stc-expiry-toast') 
+            ? '220px' : '16px';
+        toast.style.cssText = `
+            position:fixed;bottom:${bottomOffset};
+            left:50%;transform:translateX(-50%);
+            z-index:99997;max-width:420px;width:calc(100% - 32px);
+            background:#1e1e2e;border:1px solid rgba(74,144,226,.5);
+            border-left:4px solid #4a90e2;border-radius:10px;
+            padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.5);
+            color:#eee;font-size:.88em;font-family:inherit;
+            display:flex;flex-direction:column;gap:10px;
+            animation:stcSlideUp .25s ease;
+        `;
+
+        const providerNames = {
+            github: 'GitHub',
+            discord: 'Discord',
+            linuxdo: 'Linux.do'
+        };
+        const providerName = providerNames[info.oauthProvider] || info.oauthProvider;
+
+        toast.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#8ab4f8">
+                <i class="fa-solid fa-key" style="color:#4a90e2"></i>
+                建议设置登录密码
+                <button onclick="document.getElementById('stc-password-toast').remove()"
+                    style="margin-left:auto;background:none;border:none;color:#aaa;cursor:pointer;font-size:1.1em;line-height:1">
+                    <i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="font-size:.85em;color:#ccc;line-height:1.6">
+                您当前通过 <strong style="color:#8ab4f8">${providerName}</strong> 登录，账户暂未设置密码。<br>
+                建议设置密码，下次可使用用户名密码登录，无需依赖第三方服务。
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <a href="#" onclick="document.getElementById('stc-password-toast').remove();showUserPanel();return false;"
+                   style="flex:1;padding:8px 14px;border-radius:7px;text-align:center;text-decoration:none;font-size:.84em;
+                          font-weight:600;background:linear-gradient(135deg,#4a90e2,#6c63ff);color:#fff;
+                          display:flex;align-items:center;justify-content:center;gap:6px">
+                    <i class="fa-solid fa-lock"></i> 立即设置
+                </a>
+                <button onclick="document.getElementById('stc-password-toast').remove()"
+                   style="flex:1;padding:8px 14px;border-radius:7px;text-align:center;font-size:.84em;
+                          font-weight:600;border:1px solid rgba(74,144,226,.4);background:rgba(74,144,226,.1);color:#4a90e2;
+                          cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+                    <i class="fa-solid fa-clock"></i> 稍后提醒
+                </button>
+            </div>`;
+
+        document.documentElement.appendChild(toast);
+
+        // Auto-dismiss after 15 seconds
+        setTimeout(() => {
+            if (!toast.isConnected) return;
+            toast.style.transition = 'opacity .4s';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 400);
+        }, 15000);
+    }, 3000); // 3 second delay
+}
+
 jQuery(async () => {
     // Step 1: Check admin status via official /api/users/me
     try {
@@ -219,6 +296,8 @@ jQuery(async () => {
             } else {
                 showExpiryWarningToast(userExtInfo);
             }
+            // Show password reminder toast for OAuth users without password
+            showPasswordReminderToast(userExtInfo);
         }
     } catch (e) {
         console.debug('[STC-MOD] STC-MOD backend not available:', e.message);
@@ -878,6 +957,28 @@ function buildUserPanelContent(purchaseLink = '') {
         wrap.appendChild(storageCard);
     }
 
+    // ━━━━ 4a. 密码安全卡片 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const passwordCard = document.createElement('div');
+    passwordCard.id = 'stc-password-card';
+    passwordCard.style.cssText = CARD;
+    passwordCard.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div style="font-weight:600;font-size:.88em;opacity:.7;display:flex;align-items:center;gap:6px">
+                <i class="fa-solid fa-key"></i> 密码安全
+            </div>
+            <div id="stc-password-badge" style="padding:3px 10px;border-radius:20px;font-size:.78em;font-weight:600;
+                background:rgba(127,127,127,.12);border:1px solid rgba(127,127,127,.3);opacity:.75;
+                display:inline-flex;align-items:center;gap:5px">
+                <i class="fa-solid fa-ellipsis"></i> 加载中…
+            </div>
+        </div>
+        <div id="stc-password-hint" style="font-size:.8em;opacity:.6;line-height:1.5">
+            设置密码后，您可以使用用户名和密码登录，无需依赖第三方 OAuth 服务。
+        </div>
+        <div id="stc-password-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+        </div>`;
+    wrap.appendChild(passwordCard);
+
     // ━━━━ 4b. API 密钥保险箱 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const vaultCard = document.createElement('div');
     vaultCard.id = 'stc-vault-card';
@@ -1009,6 +1110,9 @@ function bindUserPanelButtons(content, popup) {
 
     // ── API 密钥保险箱 ──────────────────────────────────────
     wireVaultCard(content, showMsg, popup);
+
+    // ── 密码安全卡片 ─────────────────────────────────────────
+    wirePasswordCard(content, showMsg, popup);
 }
 
 /**
@@ -1221,6 +1325,153 @@ async function wireVaultCard(content, showMsg, parentPopup) {
             await refresh();
         } catch (e) { showMsg('重置失败：' + e.message, false); }
     });
+
+    refresh();
+}
+
+/**
+ * Wire up password security card - fetch status and render actions.
+ */
+async function wirePasswordCard(content, showMsg, parentPopup) {
+    const card = content.querySelector('#stc-password-card');
+    if (!card) return;
+    const badgeEl = card.querySelector('#stc-password-badge');
+    const hintEl = card.querySelector('#stc-password-hint');
+    const actionsEl = card.querySelector('#stc-password-actions');
+
+    const setBadge = (html, fg, bg, border) => {
+        badgeEl.innerHTML = html;
+        badgeEl.style.color = fg;
+        badgeEl.style.background = bg;
+        badgeEl.style.border = `1px solid ${border}`;
+        badgeEl.style.opacity = '1';
+    };
+
+    const renderActions = (status) => {
+        actionsEl.innerHTML = '';
+        const mkBtn = (id, label, icon, extraStyle = '') => {
+            const b = document.createElement('button');
+            b.id = id;
+            b.className = 'menu_button';
+            b.style.cssText = `padding:8px 14px;font-size:.85em;white-space:nowrap;${extraStyle}`;
+            b.innerHTML = `<i class="fa-solid ${icon}"></i> ${label}`;
+            actionsEl.appendChild(b);
+            return b;
+        };
+
+        if (!status.hasPassword) {
+            mkBtn('stc-password-set-btn', '设置密码', 'fa-lock');
+            if (status.registrationMethod && status.registrationMethod !== 'local') {
+                hintEl.innerHTML = `您当前通过 <strong>${status.registrationMethod}</strong> 登录。设置密码后，下次可使用用户名和密码登录。`;
+            } else {
+                hintEl.innerHTML = '设置密码后，您可以使用用户名和密码登录。';
+            }
+        } else {
+            mkBtn('stc-password-change-btn', '修改密码', 'fa-key');
+            hintEl.innerHTML = '您已设置密码，可以使用用户名和密码登录。';
+        }
+    };
+
+    const refresh = async () => {
+        try {
+            const r = await fetch('/api/stc/users/password-status', {
+                method: 'GET', headers: await getCsrfHeaders(),
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const status = await r.json();
+
+            if (!status.hasPassword) {
+                setBadge('<i class="fa-solid fa-circle-exclamation"></i> 未设置', '#f39c12', 'rgba(243,156,18,.1)', 'rgba(243,156,18,.3)');
+            } else {
+                setBadge('<i class="fa-solid fa-circle-check"></i> 已设置', '#2ecc71', 'rgba(46,204,113,.12)', 'rgba(46,204,113,.3)');
+            }
+
+            renderActions(status);
+            wirePasswordButtons(status);
+        } catch (e) {
+            setBadge('<i class="fa-solid fa-triangle-exclamation"></i> 状态未知', '#e74c3c', 'rgba(231,76,60,.1)', 'rgba(231,76,60,.3)');
+            hintEl.textContent = '无法读取密码状态：' + e.message;
+            actionsEl.innerHTML = '';
+        }
+    };
+
+    const askPassword = async ({ title, message, requireOld = false, confirm = false }) => {
+        const { Popup, POPUP_TYPE, POPUP_RESULT } = await import('/scripts/popup.js');
+        const id = Math.random().toString(36).slice(2);
+        const oldId = `stc-pwd-old-${id}`;
+        const pwId = `stc-pwd-new-${id}`;
+        const cfId = `stc-pwd-confirm-${id}`;
+        const container = document.createElement('div');
+        container.className = 'flex-container flexFlowColumn';
+        container.innerHTML = `
+            <h3 style="margin:0 0 6px">${esc(title)}</h3>
+            <p style="margin:0 0 10px;opacity:.8;font-size:.9em;line-height:1.5">${esc(message)}</p>
+            ${requireOld ? `<input id="${oldId}" type="password" class="text_pole" autocomplete="current-password"
+                placeholder="当前密码" style="margin-bottom:6px">` : ''}
+            <input id="${pwId}" type="password" class="text_pole" autocomplete="new-password"
+                placeholder="新密码（至少 8 位）">
+            ${confirm ? `<input id="${cfId}" type="password" class="text_pole" style="margin-top:6px" autocomplete="new-password"
+                placeholder="再次输入新密码">` : ''}`;
+
+        let oldPw = '', newPw = '', cfPw = '';
+        const popup = new Popup(container, POPUP_TYPE.CONFIRM, '', {
+            okButton: '确定',
+            cancelButton: '取消',
+            onOpen: () => document.getElementById(requireOld ? oldId : pwId)?.focus(),
+            onClose: () => {
+                oldPw = document.getElementById(oldId)?.value || '';
+                newPw = document.getElementById(pwId)?.value || '';
+                cfPw = document.getElementById(cfId)?.value || '';
+            },
+        });
+
+        const result = await popup.show();
+        if (result !== POPUP_RESULT.AFFIRMATIVE) return null;
+        if (newPw.length < 8) { toastr.error('密码长度至少需要 8 个字符。'); return null; }
+        if (confirm && newPw !== cfPw) { toastr.error('两次输入的密码不一致。'); return null; }
+        return { oldPassword: oldPw, password: newPw };
+    };
+
+    const wirePasswordButtons = (status) => {
+        card.querySelector('#stc-password-set-btn')?.addEventListener('click', async () => {
+            const pw = await askPassword({
+                title: '设置密码',
+                message: '请设置一个密码用于登录。密码长度至少 8 位。',
+                confirm: true,
+            });
+            if (!pw) return;
+            try {
+                const r = await fetch('/api/stc/users/set-password', {
+                    method: 'POST', headers: await getCsrfHeaders(),
+                    body: JSON.stringify({ password: pw.password }),
+                });
+                const d = await r.json();
+                if (!r.ok || !d.success) throw new Error(d.error || '设置失败');
+                showMsg(`密码设置成功！您的登录凭据：用户名 <strong>${esc(userExtInfo?.handle || '')}</strong>，密码为您刚才设置的密码。下次可使用用户名密码登录。`);
+                await refresh();
+            } catch (e) { showMsg('设置失败：' + e.message, false); }
+        });
+
+        card.querySelector('#stc-password-change-btn')?.addEventListener('click', async () => {
+            const pw = await askPassword({
+                title: '修改密码',
+                message: '请输入当前密码和新密码。',
+                requireOld: true,
+                confirm: true,
+            });
+            if (!pw) return;
+            try {
+                const r = await fetch('/api/stc/users/set-password', {
+                    method: 'POST', headers: await getCsrfHeaders(),
+                    body: JSON.stringify({ password: pw.password, oldPassword: pw.oldPassword }),
+                });
+                const d = await r.json();
+                if (!r.ok || !d.success) throw new Error(d.error || '修改失败');
+                showMsg('密码修改成功！');
+                await refresh();
+            } catch (e) { showMsg('修改失败：' + e.message, false); }
+        });
+    };
 
     refresh();
 }

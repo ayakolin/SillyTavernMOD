@@ -128,6 +128,8 @@ router.post('/register', async (req, res) => {
             lastLoginAt: Date.now(),
             inviteCodeUsed: inviteCode || null,
             storageLimitMiB: isStorageLimitEnabled() ? getDefaultLimitMiB() : undefined,
+            hasPassword: !!(password && password.length > 0),
+            registrationMethod: 'local',
         });
 
         // Apply default template if exists
