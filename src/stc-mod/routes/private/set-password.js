@@ -4,7 +4,7 @@
  */
 import express from 'express';
 import storage from 'node-persist';
-import { toKey, getPasswordSalt, getPasswordHash } from '../../../users.js';
+import { toKey, getPasswordSalt, getPasswordHash, getAccountVersion } from '../../../users.js';
 import { getUserMeta, setUserMeta } from '../../user-metadata.js';
 
 export const router = express.Router();
@@ -106,6 +106,11 @@ router.post('/set-password', async (request, response) => {
         user.password = newHash;
         user.salt = newSalt;
         await storage.setItem(toKey(handle), user);
+
+        // Keep current session valid after password/salt change (matches users-private change-password)
+        if (request.session && request.session.handle === handle) {
+            request.session.version = getAccountVersion(user);
+        }
 
         // Update metadata to mark password as set
         const meta = getUserMeta(handle) || {};
