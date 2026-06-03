@@ -179,32 +179,10 @@ app.use(express.static(path.join(serverDirectory, 'public'), {
 
 | 包名 | 用途 | 可选 |
 |------|------|------|
-| `better-sqlite3` | SQLite 数据库驱动（用户元数据存储） | 否（核心依赖，替代 JSON 文件存储） |
 | `nodemailer` | 邮件服务（注册验证、密码恢复、用户通知） | 是（不安装则邮件功能自动禁用） |
 | `yaml` | 读写 config.yaml 配置文件 | 是（官方若已引入则无需重复安装） |
 
 > `node-persist`（node-persist）为官方已有依赖，STC-MOD 在 `user-extend.js` 中直接复用，**无需额外安装**。
-
-### SQLite 数据库
-
-从当前版本开始，`user-metadata.json` 已迁移到 **SQLite 数据库**（`data/stc-mod/stc-mod.db`）：
-
-**优势**：
-- ✅ **零配置**：无需外部数据库服务，单文件存储
-- ✅ **解决并发冲突**：支持事务和 WAL 模式，彻底解决多节点环境下的写入竞争
-- ✅ **自动迁移**：首次启动时自动检测 `user-metadata.json` 并迁移到数据库
-- ✅ **性能提升**：索引支持，查询效率更高
-- ✅ **易于备份**：单个 `.db` 文件，可直接复制备份
-
-**自动迁移**：
-- 首次启动时，如果检测到 `data/stc-mod/user-metadata.json` 存在且数据库为空，会自动迁移
-- 原 JSON 文件会备份为 `user-metadata.json.backup.<timestamp>`
-- 迁移完成后，所有新数据写入 SQLite 数据库
-
-**数据库文件位置**：
-- `data/stc-mod/stc-mod.db` - 主数据库文件
-- `data/stc-mod/stc-mod.db-shm` - WAL 模式共享内存文件
-- `data/stc-mod/stc-mod.db-wal` - WAL 日志文件
 
 ## 依赖的官方 `src/users.js` 导出接口
 
@@ -226,9 +204,9 @@ app.use(express.static(path.join(serverDirectory, 'public'), {
 
 ```
 src/stc-mod/
-├── index.js                         # 模块入口（5个导出函数 + SQLite 初始化）
+├── index.js                         # 模块入口（5个导出函数）
 ├── config.js                        # 配置系统（读写 config.yaml）
-├── user-metadata.js                 # 扩展用户数据存储（SQLite）
+├── user-metadata.js                 # 扩展用户数据存储
 ├── middleware/
 │   ├── csrf-exemption.js            # CSRF 豁免规则
 │   └── expiration-check.js          # 用户过期检查中间件
@@ -256,8 +234,6 @@ src/stc-mod/
 │       ├── default-config.js        # 默认模板管理（管理员）
 │       └── scheduled-tasks.js       # 定时任务（管理员）
 ├── services/
-│   ├── database.js                  # SQLite 数据库连接和初始化
-│   ├── migrate-to-sqlite.js         # JSON 到 SQLite 自动迁移工具
 │   ├── email-service.js             # 邮件服务
 │   ├── invitation-codes.js          # 邀请码逻辑
 │   ├── system-monitor.js            # 系统监控
@@ -278,10 +254,7 @@ src/stc-mod/
 
 | 文件/目录 | 内容 |
 |-----------|------|
-| `stc-mod.db` | **SQLite 数据库**（用户元数据：OAuth ID、邮箱、过期时间、存储限额、密码状态等） |
-| `stc-mod.db-wal` | SQLite WAL 日志文件（Write-Ahead Log，提升并发性能） |
-| `stc-mod.db-shm` | SQLite 共享内存文件 |
-| `user-metadata.json.backup.*` | 迁移前的 JSON 备份文件（自动生成） |
+| `user-metadata.json` | 扩展用户字段（OAuth ID、邮箱、过期时间、存储限额、密码状态等） |
 | `invitation-codes.json` | 邀请码数据 |
 | `storage-codes.json` | 存储激活码数据 |
 | `announcements/` | 公告数据 |
@@ -290,35 +263,6 @@ src/stc-mod/
 | `default-template/` | 新用户默认配置模板 |
 | `privacy-vaults/` | API 密钥保险箱元数据（不含明文密钥） |
 | `system-monitor-history.json` | 系统监控历史 |
-
-### SQLite 数据库表结构
-
-**`user_metadata` 表**：
-```sql
-CREATE TABLE user_metadata (
-    handle TEXT PRIMARY KEY,               -- 用户名（主键）
-    email TEXT,                            -- 邮箱
-    oauth_provider TEXT,                   -- OAuth 提供商（github/discord/linuxdo）
-    oauth_user_id TEXT,                    -- OAuth 用户 ID
-    avatar TEXT,                           -- 头像 URL
-    storage_limit_mib INTEGER,             -- 存储限额（MiB）
-    storage_last_checkin_date TEXT,        -- 最后签到日期
-    expires_at INTEGER,                    -- 账户过期时间戳（0 = 永久）
-    created_at INTEGER,                    -- 注册时间戳
-    last_login_at INTEGER,                 -- 最后登录时间戳
-    invite_code_used TEXT,                 -- 使用的邀请码
-    has_password INTEGER DEFAULT 0,        -- 是否设置密码（0/1）
-    password_set_at INTEGER,               -- 密码设置时间戳
-    registration_method TEXT,              -- 注册方式（local/github/discord/linuxdo）
-    created_at_ts TEXT DEFAULT CURRENT_TIMESTAMP,   -- 创建时间（可读格式）
-    updated_at_ts TEXT DEFAULT CURRENT_TIMESTAMP    -- 更新时间（可读格式）
-);
-
--- 索引（提升查询性能）
-CREATE INDEX idx_oauth_provider_user_id ON user_metadata(oauth_provider, oauth_user_id);
-CREATE INDEX idx_email ON user_metadata(email);
-CREATE INDEX idx_expires_at ON user_metadata(expires_at);
-```
 
 ## 配置项
 

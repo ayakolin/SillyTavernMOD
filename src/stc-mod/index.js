@@ -19,8 +19,6 @@ import { shouldSkipCsrf as csrfCheck } from './middleware/csrf-exemption.js';
 import { expirationCheckMiddleware } from './middleware/expiration-check.js';
 import { registerStorageEnforceMiddleware } from './middleware/storage-enforce.js';
 import { isUserExpired } from './user-metadata.js';
-import { initDatabase } from './services/database.js';
-import { needsMigration, migrateJsonToSqlite } from './services/migrate-to-sqlite.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,21 +27,6 @@ ensureDefaultConfig();
 
 // Ensure data directories exist
 getStcDataDir();
-
-// Initialize SQLite database
-initDatabase();
-
-// Auto-migrate from JSON to SQLite if needed
-if (needsMigration()) {
-    console.log('[STC-MOD] Detecting user-metadata.json, starting automatic migration to SQLite...');
-    const result = migrateJsonToSqlite();
-    if (result.migrated > 0) {
-        console.log(`[STC-MOD] ✅ Successfully migrated ${result.migrated} users to SQLite database`);
-        if (result.backupPath) {
-            console.log(`[STC-MOD] 📦 Original JSON file backed up to: ${result.backupPath}`);
-        }
-    }
-}
 
 /**
  * CSRF exemption check - called from server-main.js skipCsrfProtection
