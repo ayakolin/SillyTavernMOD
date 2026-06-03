@@ -12,7 +12,9 @@ async function getCsrfHeaders() {
         try {
             const r = await fetch('/csrf-token');
             if (r.ok) _csrfToken = (await r.json()).token;
-        } catch {}
+        } catch {
+            // Ignore CSRF token fetch errors
+        }
     }
     const h = { 'Content-Type': 'application/json' };
     if (_csrfToken) h['x-csrf-token'] = _csrfToken;
@@ -23,7 +25,7 @@ async function getCsrfHeaders() {
 // Wrap the native fetch so any 507 response shows a persistent toast.
 (function installStorageGuard() {
     const _fetch = window.fetch.bind(window);
-    window.fetch = async function(...args) {
+    window.fetch = async function (...args) {
         const resp = await _fetch(...args);
         if (resp.status === 507) {
             // Clone so the caller can still read the body if needed
@@ -31,7 +33,9 @@ async function getCsrfHeaders() {
             try {
                 const data = await clone.json();
                 showStorageQuotaToast(data);
-            } catch { showStorageQuotaToast({}); }
+            } catch {
+                showStorageQuotaToast({});
+            }
         }
         return resp;
     };
@@ -180,7 +184,7 @@ async function showPasswordReminderPopup(info) {
         const providerNames = {
             github: 'GitHub',
             discord: 'Discord',
-            linuxdo: 'Linux.do'
+            linuxdo: 'Linux.do',
         };
         const providerName = providerNames[info.oauthProvider] || info.oauthProvider;
 
@@ -404,7 +408,7 @@ async function showExpiredPopup() {
         el.textContent = text;
     };
 
-    document.getElementById('stc-exp-renew-btn').addEventListener('click', async function() {
+    document.getElementById('stc-exp-renew-btn').addEventListener('click', async function () {
         const code = document.getElementById('stc-exp-code')?.value?.trim();
         if (!code) { showExpMsg('请输入激活码', false); return; }
         const handle = userExtInfo?.handle;
@@ -464,10 +468,10 @@ async function showMainAnnouncements() {
 /** Build announcement HTML content for the Popup */
 function buildAnnouncementContent(anns) {
     const ANN_BORDER = {
-        info:    '#4a90e2',
+        info: '#4a90e2',
         warning: '#f39c12',
         success: '#27ae60',
-        error:   '#e74c3c',
+        error: '#e74c3c',
     };
 
     const wrap = document.createElement('div');
@@ -1444,15 +1448,15 @@ async function wirePasswordCard(content, showMsg, parentPopup) {
                 });
                 const d = await r.json();
                 if (!r.ok || !d.success) throw new Error(d.error || '设置失败');
-                
+
                 // Update global userExtInfo to prevent reminder popup on next refresh
                 if (userExtInfo) {
                     userExtInfo.hasPassword = true;
                     userExtInfo.passwordSetAt = Date.now();
                 }
-                
+
                 showMsg(`密码设置成功！<br><br>您的登录凭据：<br>• 用户名：<span style="color:#4a90e2;font-weight:700;font-size:1.05em">${esc(userExtInfo?.handle || '')}</span><br>• 密码：您刚才设置的密码<br><br>下次可使用用户名密码登录，无需依赖第三方服务。`);
-                
+
                 // Auto-refresh page after 2 seconds to re-establish session
                 setTimeout(() => {
                     location.reload();
@@ -1475,14 +1479,14 @@ async function wirePasswordCard(content, showMsg, parentPopup) {
                 });
                 const d = await r.json();
                 if (!r.ok || !d.success) throw new Error(d.error || '修改失败');
-                
+
                 // Update metadata timestamp
                 if (userExtInfo) {
                     userExtInfo.passwordSetAt = Date.now();
                 }
-                
+
                 showMsg('密码修改成功！页面即将刷新...');
-                
+
                 // Auto-refresh page after 1.5 seconds to re-establish session
                 setTimeout(() => {
                     location.reload();
@@ -1641,16 +1645,19 @@ function makeDraggable(el, storageKey, defaultPos, onClick) {
                 return;
             }
             // Snap: if closer to right edge use right, else use left
-            const W = window.innerWidth, H = window.innerHeight;
             const rect2 = el.getBoundingClientRect();
             const pos = {
-                left:   rect2.left + 'px',
-                top:    rect2.top  + 'px',
-                right:  'auto',
+                left: rect2.left + 'px',
+                top: rect2.top + 'px',
+                right: 'auto',
                 bottom: 'auto',
             };
             applyPos(pos);
-            try { localStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(pos));
+            } catch {
+                // Ignore localStorage errors
+            }
         };
 
         document.addEventListener('mousemove', onMove);
@@ -1687,7 +1694,11 @@ function makeDraggable(el, storageKey, defaultPos, onClick) {
             const rect2 = el.getBoundingClientRect();
             const pos = { left: rect2.left + 'px', top: rect2.top + 'px', right: 'auto', bottom: 'auto' };
             applyPos(pos);
-            try { localStorage.setItem(storageKey, JSON.stringify(pos)); } catch {}
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(pos));
+            } catch {
+                // Ignore localStorage errors
+            }
         };
 
         el.addEventListener('touchmove', onMove, { passive: false });
@@ -1822,7 +1833,7 @@ function tryInjectNavIntoWelcome(cfg) {
     // Strategy: find the button first, then walk up to its parent container.
     const apiBtn = chat.querySelector(
         'button.drawer-opener[data-target="sys-settings-button"], ' +
-        'button.drawer-opener[data-target="rightNavHolder"]'
+        'button.drawer-opener[data-target="rightNavHolder"]',
     );
     if (!apiBtn) return false;
 

@@ -104,11 +104,11 @@ function deriveKey(passphrase, salt) {
 function encryptWithKey(key, value) {
     const iv = crypto.randomBytes(12); // GCM standard IV length
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    
+
     let encrypted = cipher.update(value, 'utf8', 'base64');
     encrypted += cipher.final('base64');
     const authTag = cipher.getAuthTag().toString('base64');
-    
+
     return `${VAULT_RECORD_VERSION}:${iv.toString('base64')}:${authTag}:${encrypted}`;
 }
 
@@ -124,22 +124,22 @@ function decryptWithKey(key, encryptedValue) {
     if (parts.length !== 4) {
         throw new Error('Invalid encrypted payload format');
     }
-    
+
     const [version, iv64, authTag64, data64] = parts;
-    
+
     if (parseInt(version, 10) !== VAULT_RECORD_VERSION) {
         throw new Error(`Unsupported vault record version: ${version}`);
     }
-    
+
     const iv = Buffer.from(iv64, 'base64');
     const authTag = Buffer.from(authTag64, 'base64');
-    
+
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
-    
+
     let decrypted = decipher.update(data64, 'base64', 'utf8');
     decrypted += decipher.final('utf8');
-    
+
     return decrypted;
 }
 
@@ -180,12 +180,12 @@ function writeVaultRecord(directories, record) {
 function cacheUnlockedKey(directories, key) {
     const cacheKey = getCacheKey(directories);
     const ttlMs = getUnlockTtlMs();
-    
+
     unlockedVaults.set(cacheKey, {
         key: key,
         expiresAt: Date.now() + ttlMs,
     });
-    
+
     // Automatically clear from cache when TTL expires
     setTimeout(() => {
         const current = unlockedVaults.get(cacheKey);
@@ -204,14 +204,14 @@ function cacheUnlockedKey(directories, key) {
 function getUnlockedKey(directories) {
     const cacheKey = getCacheKey(directories);
     const cached = unlockedVaults.get(cacheKey);
-    
+
     if (!cached) return null;
-    
+
     if (cached.expiresAt <= Date.now()) {
         unlockedVaults.delete(cacheKey);
         return null;
     }
-    
+
     // Slide expiration window on access
     cached.expiresAt = Date.now() + getUnlockTtlMs();
     return cached.key;
@@ -225,7 +225,7 @@ function getUnlockedKey(directories) {
 function createVaultRecord(passphrase) {
     const salt = crypto.randomBytes(16).toString('base64');
     const key = deriveKey(passphrase, salt);
-    
+
     const record = {
         version: VAULT_RECORD_VERSION,
         salt: salt,
@@ -233,7 +233,7 @@ function createVaultRecord(passphrase) {
         // Encrypt a known string to verify passphrase later without trying to decrypt actual data
         verifier: encryptWithKey(key, VERIFIER_PLAINTEXT),
     };
-    
+
     return { record, key };
 }
 
@@ -272,7 +272,7 @@ export function isVaultProtectedKey(key) {
     if (key.startsWith('api_key_')) return true;
     if (key === 'volcengine_app_id' || key === 'volcengine_access_key') return true;
     if (key === 'discord_token' || key === 'poe_token') return true;
-    
+
     return false;
 }
 
@@ -302,9 +302,9 @@ export function isEncryptedVaultValue(value) {
 export function getVaultStatus(directories) {
     const record = readVaultRecord(directories);
     const cached = unlockedVaults.get(getCacheKey(directories));
-    
+
     const isUnlocked = !!(cached && cached.expiresAt > Date.now());
-    
+
     return {
         enabled: !!record,
         unlocked: isUnlocked,
@@ -323,11 +323,11 @@ export function initializeVault(directories, passphrase) {
     if (readVaultRecord(directories)) {
         return false; // Already enabled
     }
-    
+
     const { record, key } = createVaultRecord(passphrase);
     writeVaultRecord(directories, record);
     cacheUnlockedKey(directories, key);
-    
+
     console.log(`[STC-MOD] Vault: Enabled for user ${directories.user}`);
     return true;
 }
@@ -344,7 +344,7 @@ export function unlockVault(directories, passphrase) {
     if (!record) {
         throw new Error('Vault is not enabled for this user.');
     }
-    
+
     const key = verifyPassphrase(record, passphrase);
     cacheUnlockedKey(directories, key);
     return true;
@@ -370,14 +370,14 @@ export function encryptSecretValue(directories, value) {
     if (isEncryptedVaultValue(value)) {
         return value;
     }
-    
+
     const key = getUnlockedKey(directories);
     if (!key) {
         throw new VaultLockedError();
     }
-    
+
     const encryptedData = encryptWithKey(key, value);
-    
+
     return {
         type: VAULT_VALUE_MARKER,
         data: encryptedData,
@@ -398,12 +398,12 @@ export function decryptSecretValue(directories, encryptedStructure) {
         // If it's an object but not a vault marker, returning it as-is is safer than crashing
         return typeof encryptedStructure === 'string' ? encryptedStructure : '';
     }
-    
+
     const key = getUnlockedKey(directories);
     if (!key) {
         throw new VaultLockedError();
     }
-    
+
     return decryptWithKey(key, encryptedStructure.data);
 }
 

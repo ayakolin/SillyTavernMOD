@@ -20,8 +20,11 @@ function loadAnnouncements(type = 'main') {
     const file = type === 'login' ? 'login_announcements.json' : 'announcements.json';
     const filePath = path.join(getAnnouncementsDir(), file);
     if (!fs.existsSync(filePath)) return [];
-    try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
-    catch { return []; }
+    try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch {
+        return [];
+    }
 }
 
 function saveAnnouncements(data, type = 'main') {

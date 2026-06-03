@@ -4,7 +4,7 @@
 import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
-import { requireAdminMiddleware, getAllUserHandles, getUserDirectories } from '../../../users.js';
+import { requireAdminMiddleware, getAllUserHandles } from '../../../users.js';
 import { getDataRoot, getStcConfig, setStcConfig } from '../../config.js';
 
 // Simple in-process cron: check every minute if scheduled task should run
@@ -25,7 +25,12 @@ function startScheduledCleanup() {
                 const backupsDir = path.join(getDataRoot(), h, 'backups');
                 if (!fs.existsSync(backupsDir)) continue;
                 for (const f of fs.readdirSync(backupsDir)) {
-                    try { fs.unlinkSync(path.join(backupsDir, f)); cleaned++; } catch {}
+                    try {
+                        fs.unlinkSync(path.join(backupsDir, f));
+                        cleaned++;
+                    } catch {
+                        // Skip files that cannot be deleted
+                    }
                 }
             }
             setStcConfig('scheduledTasks.cleanBackups.lastRun', now);
@@ -62,7 +67,9 @@ router.post('/clean-backups', requireAdminMiddleware, async (req, res) => {
                         totalSize += stat.size;
                         fs.unlinkSync(fp);
                         totalCleaned++;
-                    } catch {}
+                    } catch {
+                        // Skip files that cannot be deleted
+                    }
                 }
             }
         }
@@ -128,7 +135,9 @@ router.get('/storage-analysis', requireAdminMiddleware, async (req, res) => {
                     if (entry.isDirectory()) total += dirSize(full);
                     else if (entry.isFile()) total += fs.statSync(full).size;
                 }
-            } catch {}
+            } catch {
+                // Skip unreadable directories
+            }
             return total;
         }
 
@@ -151,12 +160,12 @@ router.get('/storage-analysis', requireAdminMiddleware, async (req, res) => {
                 totalBytes,
                 totalMiB: toMiB(totalBytes),
                 categories: {
-                    chats:      toMiB(categoryBytes.chats),
+                    chats: toMiB(categoryBytes.chats),
                     characters: toMiB(categoryBytes.characters),
-                    backups:    toMiB(categoryBytes.backups),
-                    worlds:     toMiB(categoryBytes.worlds),
-                    themes:     toMiB(categoryBytes.themes),
-                    other:      toMiB(otherBytes),
+                    backups: toMiB(categoryBytes.backups),
+                    worlds: toMiB(categoryBytes.worlds),
+                    themes: toMiB(categoryBytes.themes),
+                    other: toMiB(otherBytes),
                 },
             };
         }
@@ -178,11 +187,11 @@ router.get('/storage-analysis', requireAdminMiddleware, async (req, res) => {
         const pageData = allData.slice(offset, offset + limit);
 
         res.json({
-            total:       allData.length,
+            total: allData.length,
             page,
             limit,
-            totalPages:  Math.ceil(allData.length / limit),
-            data:        pageData,
+            totalPages: Math.ceil(allData.length / limit),
+            data: pageData,
         });
     } catch (error) {
         res.status(500).json({ error: error.message });

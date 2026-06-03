@@ -7,7 +7,6 @@ import storage from 'node-persist';
 import lodash from 'lodash';
 import { checkForNewContent, CONTENT_TYPES } from '../../../endpoints/content-manager.js';
 import {
-    KEY_PREFIX,
     toKey,
     getAllUserHandles,
     getPasswordSalt,

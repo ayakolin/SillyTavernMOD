@@ -434,7 +434,7 @@ email:
 
 userStorage:
   enabled: true
-  defaultLimitMiB: 500
+  defaultLimitMiB: 50
   dailyCheckInMiB: 0
 
 

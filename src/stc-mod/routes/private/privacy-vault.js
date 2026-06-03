@@ -24,7 +24,10 @@ function sendVaultError(response, error) {
     if (error instanceof VaultRequiredError) {
         return response.status(428).send({ error: true, code: 'VAULT_REQUIRED', message: error.message });
     }
-    return response.status(500).send({ error: true });
+    return response.status(500).send({
+        error: true,
+        message: error.message || 'Internal server error',
+    });
 }
 
 /**
@@ -37,7 +40,7 @@ router.post('/status', (request, response) => {
         return response.json(status);
     } catch (error) {
         console.error('[STC-MOD] Vault /status error:', error);
-        return response.status(500).send({ error: true, message: 'Internal server error' });
+        return sendVaultError(response, error);
     }
 });
 
@@ -61,7 +64,7 @@ router.post('/enable', async (request, response) => {
         return response.json({ success: true, status, encryptedCount });
     } catch (error) {
         console.error('[STC-MOD] Vault /enable error:', error);
-        return response.status(500).send({ error: true, message: error.message });
+        return sendVaultError(response, error);
     }
 });
 
@@ -89,7 +92,7 @@ router.post('/unlock', (request, response) => {
         }
     } catch (error) {
         console.error('[STC-MOD] Vault /unlock error:', error);
-        return response.status(500).send({ error: true, message: error.message });
+        return sendVaultError(response, error);
     }
 });
 
@@ -104,7 +107,7 @@ router.post('/lock', (request, response) => {
         return response.json({ success: true, status });
     } catch (error) {
         console.error('[STC-MOD] Vault /lock error:', error);
-        return response.status(500).send({ error: true, message: 'Internal server error' });
+        return sendVaultError(response, error);
     }
 });
 
@@ -142,6 +145,6 @@ router.post('/reset', (request, response) => {
         return response.json({ success: true, existed, removedKeys, status });
     } catch (error) {
         console.error('[STC-MOD] Vault /reset error:', error);
-        return response.status(500).send({ error: true, message: error.message });
+        return sendVaultError(response, error);
     }
 });

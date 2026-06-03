@@ -83,8 +83,11 @@ export function getHistoryPath() {
 export function loadHistory() {
     const filePath = getHistoryPath();
     if (!fs.existsSync(filePath)) return [];
-    try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
-    catch { return []; }
+    try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch {
+        return [];
+    }
 }
 
 export function recordSnapshot() {
@@ -92,8 +95,11 @@ export function recordSnapshot() {
     const history = loadHistory();
     history.push(snapshot);
     while (history.length > MAX_HISTORY_POINTS) history.shift();
-    try { fs.writeFileSync(getHistoryPath(), JSON.stringify(history), 'utf8'); }
-    catch (e) { console.error('[STC-MOD] Failed to save monitor history:', e.message); }
+    try {
+        fs.writeFileSync(getHistoryPath(), JSON.stringify(history), 'utf8');
+    } catch (e) {
+        console.error('[STC-MOD] Failed to save monitor history:', e.message);
+    }
     return snapshot;
 }
 

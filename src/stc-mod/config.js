@@ -10,7 +10,6 @@ let cachedConfig = null;
 let configMtime = 0;
 
 function getConfigPath() {
-    const dataRoot = globalThis.DATA_ROOT || path.join(process.cwd(), 'data');
     return path.join(process.cwd(), 'config.yaml');
 }
 

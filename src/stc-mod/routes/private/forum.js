@@ -26,8 +26,11 @@ function getImagesDir() {
 function loadPosts() {
     const filePath = path.join(getForumDir(), 'posts.json');
     if (!fs.existsSync(filePath)) return [];
-    try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
-    catch { return []; }
+    try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch {
+        return [];
+    }
 }
 
 function savePosts(posts) {
@@ -117,8 +120,11 @@ router.post('/posts/:id/like', (req, res) => {
     if (!post) return res.status(404).json({ error: '帖子不存在' });
     const handle = req.user.profile.handle;
     const idx = post.likes.indexOf(handle);
-    if (idx >= 0) { post.likes.splice(idx, 1); }
-    else { post.likes.push(handle); }
+    if (idx >= 0) {
+        post.likes.splice(idx, 1);
+    } else {
+        post.likes.push(handle);
+    }
     savePosts(posts);
     res.json({ success: true, liked: idx < 0, count: post.likes.length });
 });
@@ -192,7 +198,7 @@ router.post('/posts/:id/comments/:commentId/reply', (req, res) => {
 // Image upload for forum (base64 JSON, avoids multer/CSRF issues)
 router.post('/upload-image', express.json({ limit: '10mb' }), (req, res) => {
     try {
-        const { image, filename } = req.body;
+        const { image } = req.body;
         if (!image || !image.startsWith('data:image/')) {
             return res.status(400).json({ error: '无效的图片数据' });
         }

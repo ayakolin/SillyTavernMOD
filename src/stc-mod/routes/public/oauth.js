@@ -5,7 +5,7 @@
 import express from 'express';
 import crypto from 'node:crypto';
 import { getStcConfig } from '../../config.js';
-import { findUserByOAuth, setUserMeta, getUserMeta } from '../../user-metadata.js';
+import { findUserByOAuth, setUserMeta } from '../../user-metadata.js';
 import { createUser } from './register-helper.js';
 import * as invitationService from '../../services/invitation-codes.js';
 import { getDefaultLimitMiB, isStorageLimitEnabled } from '../../services/storage-quota.js';
@@ -137,7 +137,11 @@ router.get('/:provider/callback', async (req, res) => {
         });
 
         if (getTemplateMeta()) {
-            try { applyTemplate(userHandle); } catch {}
+            try {
+                applyTemplate(userHandle);
+            } catch {
+                // Template application is optional; do not block OAuth login
+            }
         }
 
         if (req.session) {
@@ -206,7 +210,11 @@ router.post('/complete-registration', async (req, res) => {
         });
 
         if (getTemplateMeta()) {
-            try { applyTemplate(userHandle); } catch {}
+            try {
+                applyTemplate(userHandle);
+            } catch {
+                // Template application is optional; do not block registration
+            }
         }
 
         if (req.session) {
@@ -281,7 +289,9 @@ async function getUserInfo(provider, config, tokenData) {
                         userInfo = { id: payload.sub || payload.id, username: payload.username, email: payload.email, avatar: payload.avatar_url };
                     }
                 }
-            } catch {}
+            } catch {
+                // Fall back to userInfo API when JWT payload is not parseable
+            }
 
             if (!userInfo) {
                 const userInfoUrl = config.userInfoUrl || 'https://connect.linux.do/api/user';

@@ -36,8 +36,11 @@ function getCommentsDir() {
 function loadCharIndex() {
     const f = path.join(getCharsDir(), 'index.json');
     if (!fs.existsSync(f)) return [];
-    try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-    catch { return []; }
+    try {
+        return JSON.parse(fs.readFileSync(f, 'utf8'));
+    } catch {
+        return [];
+    }
 }
 
 function saveCharIndex(index) {
@@ -96,17 +99,19 @@ router.post('/share', (req, res) => {
                 return res.status(400).json({ error: '不支持的文件格式（支持 PNG / JSON / YAML）' });
             }
 
-            // Parse character data for metadata
-            let characterData = {};
+            // Validate character file can be parsed
             if (ext === 'json') {
-                characterData = JSON.parse(fs.readFileSync(file.path, 'utf8'));
+                JSON.parse(fs.readFileSync(file.path, 'utf8'));
             } else if (ext === 'yaml' || ext === 'yml') {
                 const yaml = (await import('js-yaml'));
-                characterData = yaml.load(fs.readFileSync(file.path, 'utf8')) || {};
+                yaml.load(fs.readFileSync(file.path, 'utf8'));
             } else if (ext === 'png') {
-            const { read } = await import('../../../character-card-parser.js');
-            try { characterData = JSON.parse(read(fs.readFileSync(file.path))); }
-                catch { /* no embedded data, that's OK */ }
+                const { read } = await import('../../../character-card-parser.js');
+                try {
+                    JSON.parse(read(fs.readFileSync(file.path)));
+                } catch {
+                    /* no embedded data, that's OK */
+                }
             }
 
             // Move file to permanent storage
@@ -117,8 +122,11 @@ router.post('/share', (req, res) => {
 
             // Parse tags
             let tags = [];
-            try { tags = JSON.parse(req.body.tags || '[]'); }
-            catch { tags = String(req.body.tags || '').split(',').map(t => t.trim()).filter(Boolean); }
+            try {
+                tags = JSON.parse(req.body.tags || '[]');
+            } catch {
+                tags = String(req.body.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+            }
 
             const entry = {
                 id,
@@ -196,8 +204,11 @@ router.post('/import/:id', (req, res) => {
 
             if (ext === 'png') {
                 avatarBuffer = fs.readFileSync(filePath);
-                try { jsonData = JSON.parse(read(avatarBuffer)); }
-                catch { jsonData = { name: entry.name }; }
+                try {
+                    jsonData = JSON.parse(read(avatarBuffer));
+                } catch {
+                    jsonData = { name: entry.name };
+                }
             } else if (ext === 'json') {
                 jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
                 const fallback = path.resolve(process.cwd(), 'public', 'img', 'ai4.png');
@@ -278,8 +289,11 @@ router.post('/delete/:id', express.json(), (req, res) => {
 function loadComments(charId) {
     const f = path.join(getCommentsDir(), `${charId}.json`);
     if (!fs.existsSync(f)) return [];
-    try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
-    catch { return []; }
+    try {
+        return JSON.parse(fs.readFileSync(f, 'utf8'));
+    } catch {
+        return [];
+    }
 }
 
 /** @param {string} charId @param {any[]} data */

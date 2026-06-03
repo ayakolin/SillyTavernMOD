@@ -21,8 +21,11 @@ function getTemplateMetaPath() {
 function loadTemplateMeta() {
     const metaPath = getTemplateMetaPath();
     if (!fs.existsSync(metaPath)) return null;
-    try { return JSON.parse(fs.readFileSync(metaPath, 'utf8')); }
-    catch { return null; }
+    try {
+        return JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+    } catch {
+        return null;
+    }
 }
 
 /**

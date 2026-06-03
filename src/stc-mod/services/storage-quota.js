@@ -116,8 +116,11 @@ export function dailyCheckIn(handle) {
 function loadStorageCodes() {
     const filePath = path.join(getStcDataDir(), STORAGE_CODES_FILE);
     if (!fs.existsSync(filePath)) return [];
-    try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
-    catch { return []; }
+    try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch {
+        return [];
+    }
 }
 
 function saveStorageCodes(codes) {

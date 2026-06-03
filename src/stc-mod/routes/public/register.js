@@ -134,8 +134,11 @@ router.post('/register', async (req, res) => {
 
         // Apply default template if exists
         if (getTemplateMeta()) {
-            try { applyTemplate(handle); }
-            catch (e) { console.error('[STC-MOD] Apply template failed:', e.message); }
+            try {
+                applyTemplate(handle);
+            } catch (e) {
+                console.error('[STC-MOD] Apply template failed:', e.message);
+            }
         }
 
         res.json({

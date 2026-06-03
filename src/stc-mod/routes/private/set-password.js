@@ -29,7 +29,7 @@ router.get('/password-status', async (request, response) => {
         // Check metadata for registration method
         const meta = getUserMeta(handle) || {};
         const hasPassword = !!(user.password && user.password.length > 0);
-        
+
         return response.json({
             hasPassword,
             registrationMethod: meta.oauthProvider || 'local',
@@ -56,25 +56,25 @@ router.post('/set-password', async (request, response) => {
 
         // Validate new password
         if (!password || typeof password !== 'string') {
-            return response.status(400).send({ 
-                success: false, 
-                error: '请提供新密码' 
+            return response.status(400).send({
+                success: false,
+                error: '请提供新密码',
             });
         }
 
         if (password.length < 8) {
-            return response.status(400).send({ 
-                success: false, 
-                error: '密码长度至少需要 8 个字符' 
+            return response.status(400).send({
+                success: false,
+                error: '密码长度至少需要 8 个字符',
             });
         }
 
         // Get user from official storage
         const user = await storage.getItem(toKey(handle));
         if (!user) {
-            return response.status(404).send({ 
-                success: false, 
-                error: '用户不存在' 
+            return response.status(404).send({
+                success: false,
+                error: '用户不存在',
             });
         }
 
@@ -82,18 +82,18 @@ router.post('/set-password', async (request, response) => {
         const hasExistingPassword = !!(user.password && user.password.length > 0);
         if (hasExistingPassword) {
             if (!oldPassword) {
-                return response.status(400).send({ 
-                    success: false, 
-                    error: '修改密码需要提供当前密码' 
+                return response.status(400).send({
+                    success: false,
+                    error: '修改密码需要提供当前密码',
                 });
             }
 
             // Verify old password
             const oldHash = getPasswordHash(oldPassword, user.salt);
             if (oldHash !== user.password) {
-                return response.status(401).send({ 
-                    success: false, 
-                    error: '当前密码不正确' 
+                return response.status(401).send({
+                    success: false,
+                    error: '当前密码不正确',
                 });
             }
         }
@@ -123,9 +123,9 @@ router.post('/set-password', async (request, response) => {
         });
     } catch (error) {
         console.error('[STC-MOD] Set password error:', error);
-        return response.status(500).send({ 
-            success: false, 
-            error: '服务器错误，请稍后重试' 
+        return response.status(500).send({
+            success: false,
+            error: '服务器错误，请稍后重试',
         });
     }
 });
@@ -145,26 +145,26 @@ router.post('/verify-password', async (request, response) => {
         const { password } = request.body;
 
         if (!password) {
-            return response.status(400).send({ 
-                success: false, 
-                error: '请提供密码' 
+            return response.status(400).send({
+                success: false,
+                error: '请提供密码',
             });
         }
 
         // Get user from official storage
         const user = await storage.getItem(toKey(handle));
         if (!user) {
-            return response.status(404).send({ 
-                success: false, 
-                error: '用户不存在' 
+            return response.status(404).send({
+                success: false,
+                error: '用户不存在',
             });
         }
 
         // Check if user has a password
         if (!user.password || user.password.length === 0) {
-            return response.status(400).send({ 
-                success: false, 
-                error: '账户未设置密码' 
+            return response.status(400).send({
+                success: false,
+                error: '账户未设置密码',
             });
         }
 
@@ -178,9 +178,9 @@ router.post('/verify-password', async (request, response) => {
         });
     } catch (error) {
         console.error('[STC-MOD] Verify password error:', error);
-        return response.status(500).send({ 
-            success: false, 
-            error: '服务器错误，请稍后重试' 
+        return response.status(500).send({
+            success: false,
+            error: '服务器错误，请稍后重试',
         });
     }
 });

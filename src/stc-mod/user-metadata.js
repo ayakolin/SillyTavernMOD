@@ -1,44 +1,9 @@
 /**
  * SillyTavernchat Module - Extended User Metadata
- * Maintains a separate data store for user extension fields (OAuth, email, storage, expiration).
+ * SQLite-backed storage for user extension fields (OAuth, email, storage, expiration).
  * Does NOT modify the official users.js user model.
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import { getStcDataDir } from './config.js';
-
-const METADATA_FILE = 'user-metadata.json';
-
-let metadataCache = null;
-
-function getMetadataPath() {
-    return path.join(getStcDataDir(), METADATA_FILE);
-}
-
-function loadMetadata() {
-    if (metadataCache) return metadataCache;
-    const filePath = getMetadataPath();
-    if (!fs.existsSync(filePath)) {
-        metadataCache = {};
-        return metadataCache;
-    }
-    try {
-        metadataCache = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    } catch (e) {
-        console.error('[STC-MOD] Failed to read user metadata:', e.message);
-        metadataCache = {};
-    }
-    return metadataCache;
-}
-
-function saveMetadata() {
-    try {
-        const filePath = getMetadataPath();
-        fs.writeFileSync(filePath, JSON.stringify(metadataCache, null, 2), 'utf8');
-    } catch (e) {
-        console.error('[STC-MOD] Failed to save user metadata:', e.message);
-    }
-}
+import { getDb } from './services/database.js';
 
 /**
  * @typedef {Object} UserExtendedData
@@ -58,13 +23,63 @@ function saveMetadata() {
  */
 
 /**
+ * @typedef {Object} UserMetadataRow
+ * @property {string} handle
+ * @property {string|null} [email]
+ * @property {string|null} [oauth_provider]
+ * @property {string|null} [oauth_user_id]
+ * @property {string|null} [avatar]
+ * @property {number|null} [storage_limit_mib]
+ * @property {string|null} [storage_last_checkin_date]
+ * @property {number|null} [expires_at]
+ * @property {number|null} [created_at]
+ * @property {number|null} [last_login_at]
+ * @property {string|null} [invite_code_used]
+ * @property {number|null} [has_password]
+ * @property {number|null} [password_set_at]
+ * @property {string|null} [registration_method]
+ */
+
+/**
+ * @typedef {Object} UserMetadataHandleRow
+ * @property {string} handle
+ */
+
+/**
+ * Convert database row to UserExtendedData object
+ * @param {UserMetadataRow|null|undefined} row - SQLite row
+ * @returns {UserExtendedData|null}
+ */
+function rowToData(row) {
+    if (!row) return null;
+    return {
+        email: row.email ?? undefined,
+        oauthProvider: row.oauth_provider ?? undefined,
+        oauthUserId: row.oauth_user_id ?? undefined,
+        avatar: row.avatar ?? undefined,
+        storageLimitMiB: row.storage_limit_mib ?? undefined,
+        storageLastCheckInDate: row.storage_last_checkin_date ?? undefined,
+        expiresAt: row.expires_at ?? undefined,
+        createdAt: row.created_at ?? undefined,
+        lastLoginAt: row.last_login_at ?? undefined,
+        inviteCodeUsed: row.invite_code_used ?? undefined,
+        hasPassword: !!row.has_password,
+        passwordSetAt: row.password_set_at ?? undefined,
+        registrationMethod: row.registration_method ?? undefined,
+    };
+}
+
+/**
  * Get extended data for a user
  * @param {string} handle User handle
  * @returns {UserExtendedData|null}
  */
 export function getUserMeta(handle) {
-    const meta = loadMetadata();
-    return meta[handle] || null;
+    const db = getDb();
+    const row = /** @type {UserMetadataRow|undefined} */ (
+        db.prepare('SELECT * FROM user_metadata WHERE handle = ?').get(handle)
+    );
+    return rowToData(row);
 }
 
 /**
@@ -73,12 +88,64 @@ export function getUserMeta(handle) {
  * @param {Partial<UserExtendedData>} data Data to merge
  */
 export function setUserMeta(handle, data) {
-    const meta = loadMetadata();
-    if (!meta[handle]) {
-        meta[handle] = {};
-    }
-    Object.assign(meta[handle], data);
-    saveMetadata();
+    const db = getDb();
+
+    const stmt = db.prepare(`
+        INSERT INTO user_metadata (
+            handle, email, oauth_provider, oauth_user_id, avatar,
+            storage_limit_mib, storage_last_checkin_date, expires_at,
+            created_at, last_login_at, invite_code_used,
+            has_password, password_set_at, registration_method,
+            updated_at_ts
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(handle) DO UPDATE SET
+            email = COALESCE(?, email),
+            oauth_provider = COALESCE(?, oauth_provider),
+            oauth_user_id = COALESCE(?, oauth_user_id),
+            avatar = COALESCE(?, avatar),
+            storage_limit_mib = COALESCE(?, storage_limit_mib),
+            storage_last_checkin_date = COALESCE(?, storage_last_checkin_date),
+            expires_at = COALESCE(?, expires_at),
+            created_at = COALESCE(?, created_at),
+            last_login_at = COALESCE(?, last_login_at),
+            invite_code_used = COALESCE(?, invite_code_used),
+            has_password = COALESCE(?, has_password),
+            password_set_at = COALESCE(?, password_set_at),
+            registration_method = COALESCE(?, registration_method),
+            updated_at_ts = datetime('now')
+    `);
+
+    const hasPasswordInt = data.hasPassword !== undefined ? (data.hasPassword ? 1 : 0) : undefined;
+
+    stmt.run(
+        handle,
+        data.email,
+        data.oauthProvider,
+        data.oauthUserId,
+        data.avatar,
+        data.storageLimitMiB,
+        data.storageLastCheckInDate,
+        data.expiresAt,
+        data.createdAt,
+        data.lastLoginAt,
+        data.inviteCodeUsed,
+        hasPasswordInt,
+        data.passwordSetAt,
+        data.registrationMethod,
+        data.email,
+        data.oauthProvider,
+        data.oauthUserId,
+        data.avatar,
+        data.storageLimitMiB,
+        data.storageLastCheckInDate,
+        data.expiresAt,
+        data.createdAt,
+        data.lastLoginAt,
+        data.inviteCodeUsed,
+        hasPasswordInt,
+        data.passwordSetAt,
+        data.registrationMethod,
+    );
 }
 
 /**
@@ -86,17 +153,29 @@ export function setUserMeta(handle, data) {
  * @param {string} handle
  */
 export function deleteUserMeta(handle) {
-    const meta = loadMetadata();
-    delete meta[handle];
-    saveMetadata();
+    const db = getDb();
+    db.prepare('DELETE FROM user_metadata WHERE handle = ?').run(handle);
 }
 
 /**
  * Get all user metadata entries
- * @returns {Object<string, UserExtendedData>}
+ * @returns {Record<string, UserExtendedData>}
  */
 export function getAllUserMeta() {
-    return { ...loadMetadata() };
+    const db = getDb();
+    const rows = /** @type {UserMetadataRow[]} */ (
+        db.prepare('SELECT * FROM user_metadata').all()
+    );
+
+    /** @type {Record<string, UserExtendedData>} */
+    const result = {};
+    for (const row of rows) {
+        const data = rowToData(row);
+        if (data) {
+            result[row.handle] = data;
+        }
+    }
+    return result;
 }
 
 /**
@@ -118,13 +197,15 @@ export function isUserExpired(handle) {
  * @returns {string|null} handle or null
  */
 export function findUserByOAuth(provider, oauthUserId) {
-    const meta = loadMetadata();
-    for (const [handle, data] of Object.entries(meta)) {
-        if (data.oauthProvider === provider && String(data.oauthUserId) === String(oauthUserId)) {
-            return handle;
-        }
-    }
-    return null;
+    const db = getDb();
+    const row = /** @type {UserMetadataHandleRow|undefined} */ (
+        db.prepare(`
+        SELECT handle FROM user_metadata
+        WHERE oauth_provider = ? AND oauth_user_id = ?
+    `).get(provider, String(oauthUserId))
+    );
+
+    return row ? row.handle : null;
 }
 
 /**
@@ -134,14 +215,16 @@ export function findUserByOAuth(provider, oauthUserId) {
  */
 export function findUserByEmail(email) {
     if (!email) return null;
-    const meta = loadMetadata();
-    const lowerEmail = email.toLowerCase();
-    for (const [handle, data] of Object.entries(meta)) {
-        if (data.email && data.email.toLowerCase() === lowerEmail) {
-            return handle;
-        }
-    }
-    return null;
+
+    const db = getDb();
+    const row = /** @type {UserMetadataHandleRow|undefined} */ (
+        db.prepare(`
+        SELECT handle FROM user_metadata
+        WHERE LOWER(email) = LOWER(?)
+    `).get(email)
+    );
+
+    return row ? row.handle : null;
 }
 
 /**
@@ -172,7 +255,8 @@ export function extendExpiration(handle, durationMs) {
 
 /**
  * Invalidate the in-memory cache (for testing or force-reload)
+ * Note: SQLite doesn't use in-memory cache, but keep this for API compatibility
  */
 export function invalidateCache() {
-    metadataCache = null;
+    // No-op for SQLite, but keep for backward compatibility
 }
