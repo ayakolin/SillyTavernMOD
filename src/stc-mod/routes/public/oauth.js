@@ -138,7 +138,7 @@ router.get('/:provider/callback', async (req, res) => {
 
         if (getTemplateMeta()) {
             try {
-                applyTemplate(userHandle);
+                await applyTemplate(userHandle, { displayName: safeUsername });
             } catch {
                 // Template application is optional; do not block OAuth login
             }
@@ -211,7 +211,7 @@ router.post('/complete-registration', async (req, res) => {
 
         if (getTemplateMeta()) {
             try {
-                applyTemplate(userHandle);
+                await applyTemplate(userHandle, { displayName: baseUsername });
             } catch {
                 // Template application is optional; do not block registration
             }

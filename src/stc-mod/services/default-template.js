@@ -4,7 +4,12 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import storage from 'node-persist';
+import { SETTINGS_FILE, USER_DIRECTORY_TEMPLATE } from '../../constants.js';
+import { toKey } from '../../users.js';
 import { getStcDataDir, getDataRoot } from '../config.js';
+
+const DEFAULT_USER_AVATAR = 'user-default.png';
 
 const TEMPLATE_DIR = 'default-template';
 
@@ -108,11 +113,88 @@ export function saveTemplate(sourceHandle, options = {}) {
     return meta;
 }
 
+async function resolveDisplayName(targetHandle, displayName) {
+    if (typeof displayName === 'string' && displayName.trim()) {
+        return displayName.trim();
+    }
+
+    try {
+        const user = await storage.getItem(toKey(targetHandle));
+        if (user?.name?.trim()) {
+            return user.name.trim();
+        }
+    } catch {
+        // Fall back to handle below
+    }
+
+    return targetHandle || 'User';
+}
+
+function avatarFileExists(targetDir, avatarFile) {
+    if (!avatarFile || typeof avatarFile !== 'string') {
+        return false;
+    }
+
+    const avatarPath = path.join(targetDir, USER_DIRECTORY_TEMPLATE.avatars, avatarFile);
+    return fs.existsSync(avatarPath);
+}
+
+/**
+ * Restore new-user identity fields after template settings overwrite source user data.
+ * @param {string} targetHandle
+ * @param {string} targetDir
+ * @param {string} displayName
+ */
+function patchUserIdentitySettings(targetHandle, targetDir, displayName) {
+    const settingsPath = path.join(targetDir, SETTINGS_FILE);
+    if (!fs.existsSync(settingsPath)) {
+        return;
+    }
+
+    let settings;
+    try {
+        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    } catch (e) {
+        console.error(`[STC-MOD] Failed to parse settings for ${targetHandle}:`, e.message);
+        return;
+    }
+
+    settings.username = displayName;
+
+    if (!avatarFileExists(targetDir, settings.user_avatar)) {
+        settings.user_avatar = DEFAULT_USER_AVATAR;
+    }
+
+    if (settings.power_user && typeof settings.power_user === 'object') {
+        const powerUser = settings.power_user;
+
+        if (powerUser.default_persona && !avatarFileExists(targetDir, powerUser.default_persona)) {
+            powerUser.default_persona = settings.user_avatar;
+        }
+
+        if (!powerUser.personas || typeof powerUser.personas !== 'object') {
+            powerUser.personas = {};
+        }
+
+        const personaIds = new Set([
+            settings.user_avatar,
+            powerUser.default_persona,
+        ].filter(Boolean));
+
+        for (const personaId of personaIds) {
+            powerUser.personas[personaId] = displayName;
+        }
+    }
+
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 4), 'utf8');
+}
+
 /**
  * Apply default template to a new user directory
  * @param {string} targetHandle
+ * @param {{ displayName?: string }} [options]
  */
-export function applyTemplate(targetHandle) {
+export async function applyTemplate(targetHandle, { displayName } = {}) {
     const meta = loadTemplateMeta();
     if (!meta) return false;
 
@@ -135,6 +217,9 @@ export function applyTemplate(targetHandle) {
             console.error(`[STC-MOD] Failed to apply template file ${f}:`, e.message);
         }
     }
+
+    const resolvedDisplayName = await resolveDisplayName(targetHandle, displayName);
+    patchUserIdentitySettings(targetHandle, targetDir, resolvedDisplayName);
 
     console.log(`[STC-MOD] Default template applied to user: ${targetHandle}`);
     return true;
