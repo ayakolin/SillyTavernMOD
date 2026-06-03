@@ -28,6 +28,9 @@ router.get('/me-ext', (req, res) => {
         expiresAt: meta.expiresAt,
         createdAt: meta.createdAt,
         lastLoginAt: meta.lastLoginAt,
+        hasPassword: meta.hasPassword,
+        passwordSetAt: meta.passwordSetAt,
+        registrationMethod: meta.registrationMethod,
         storage,
     });
 });

@@ -168,36 +168,14 @@ function showExpiryWarningToast(info) {
     }, 12000);
 }
 
-// ── Password Reminder Toast (OAuth users without password) ───
-function showPasswordReminderToast(info) {
+// ── Password Reminder Popup (OAuth users without password) ───
+async function showPasswordReminderPopup(info) {
     // Only show for OAuth users without password
     if (!info?.oauthProvider) return; // not OAuth user
     if (info.hasPassword) return; // already has password
 
-    // Deduplicate: only show once per session per day
-    const storageKey = `stc_password_reminded_${new Date().toISOString().split('T')[0]}`;
-    if (sessionStorage.getItem(storageKey)) return;
-    sessionStorage.setItem(storageKey, '1');
-
-    // Delay 3 seconds after page load
-    setTimeout(() => {
-        document.getElementById('stc-password-toast')?.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'stc-password-toast';
-        const bottomOffset = document.getElementById('stc-quota-toast') || document.getElementById('stc-expiry-toast') 
-            ? '220px' : '16px';
-        toast.style.cssText = `
-            position:fixed;bottom:${bottomOffset};
-            left:50%;transform:translateX(-50%);
-            z-index:99997;max-width:420px;width:calc(100% - 32px);
-            background:#1e1e2e;border:1px solid rgba(74,144,226,.5);
-            border-left:4px solid #4a90e2;border-radius:10px;
-            padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.5);
-            color:#eee;font-size:.88em;font-family:inherit;
-            display:flex;flex-direction:column;gap:10px;
-            animation:stcSlideUp .25s ease;
-        `;
+    try {
+        const { Popup, POPUP_TYPE } = await import('/scripts/popup.js');
 
         const providerNames = {
             github: 'GitHub',
@@ -206,43 +184,56 @@ function showPasswordReminderToast(info) {
         };
         const providerName = providerNames[info.oauthProvider] || info.oauthProvider;
 
-        toast.innerHTML = `
-            <div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#8ab4f8">
-                <i class="fa-solid fa-key" style="color:#4a90e2"></i>
-                建议设置登录密码
-                <button onclick="document.getElementById('stc-password-toast').remove()"
-                    style="margin-left:auto;background:none;border:none;color:#aaa;cursor:pointer;font-size:1.1em;line-height:1">
-                    <i class="fa-solid fa-xmark"></i></button>
+        const content = document.createElement('div');
+        content.style.cssText = 'display:flex;flex-direction:column;gap:14px;width:100%';
+
+        // Header with icon
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:4px';
+        header.innerHTML = `
+            <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#4a90e2,#6c63ff);
+                display:flex;align-items:center;justify-content:center;font-size:1.5em;color:#fff">
+                <i class="fa-solid fa-key"></i>
             </div>
-            <div style="font-size:.85em;color:#ccc;line-height:1.6">
-                您当前通过 <strong style="color:#8ab4f8">${providerName}</strong> 登录，账户暂未设置密码。<br>
-                建议设置密码，下次可使用用户名密码登录，无需依赖第三方服务。
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <a href="#" onclick="document.getElementById('stc-password-toast').remove();showUserPanel();return false;"
-                   style="flex:1;padding:8px 14px;border-radius:7px;text-align:center;text-decoration:none;font-size:.84em;
-                          font-weight:600;background:linear-gradient(135deg,#4a90e2,#6c63ff);color:#fff;
-                          display:flex;align-items:center;justify-content:center;gap:6px">
-                    <i class="fa-solid fa-lock"></i> 立即设置
-                </a>
-                <button onclick="document.getElementById('stc-password-toast').remove()"
-                   style="flex:1;padding:8px 14px;border-radius:7px;text-align:center;font-size:.84em;
-                          font-weight:600;border:1px solid rgba(74,144,226,.4);background:rgba(74,144,226,.1);color:#4a90e2;
-                          cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-                    <i class="fa-solid fa-clock"></i> 稍后提醒
-                </button>
+            <div style="flex:1">
+                <h3 style="margin:0 0 4px;font-size:1.1em">建议设置登录密码</h3>
+                <div style="font-size:.8em;opacity:.6">提升账户安全性和便利性</div>
             </div>`;
+        content.appendChild(header);
 
-        document.documentElement.appendChild(toast);
+        // Main message
+        const message = document.createElement('div');
+        message.style.cssText = 'font-size:.92em;line-height:1.65;opacity:.9;padding:12px;background:var(--SmartThemeBotMesBlurTintColor,rgba(255,255,255,.04));border-radius:8px;border-left:3px solid #4a90e2';
+        message.innerHTML = `
+            您当前通过 <strong style="color:#8ab4f8">${providerName}</strong> 登录，账户暂未设置密码。<br><br>
+            <strong>设置密码的好处：</strong><br>
+            • 可使用用户名密码登录，无需依赖第三方服务<br>
+            • 即使 ${providerName} 服务不可用也能正常登录<br>
+            • 提升账户安全性，双重登录方式`;
+        content.appendChild(message);
 
-        // Auto-dismiss after 15 seconds
-        setTimeout(() => {
-            if (!toast.isConnected) return;
-            toast.style.transition = 'opacity .4s';
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 400);
-        }, 15000);
-    }, 3000); // 3 second delay
+        // Hint
+        const hint = document.createElement('div');
+        hint.style.cssText = 'font-size:.8em;opacity:.55;display:flex;align-items:center;gap:6px';
+        hint.innerHTML = '<i class="fa-solid fa-lightbulb" style="color:#f39c12"></i> 建议立即设置密码，仅需 8 位字符即可';
+        content.appendChild(hint);
+
+        const popup = new Popup(content, POPUP_TYPE.TEXT, '', {
+            okButton: '立即设置密码',
+            cancelButton: '稍后再说',
+            wide: false,
+            allowVerticalScrolling: true,
+        });
+
+        const result = await popup.show();
+
+        // If user clicked "立即设置密码", open user panel
+        if (result === 1) { // POPUP_RESULT.AFFIRMATIVE
+            showUserPanel();
+        }
+    } catch (e) {
+        console.error('[STC-MOD] Password reminder popup error:', e);
+    }
 }
 
 jQuery(async () => {
@@ -296,8 +287,6 @@ jQuery(async () => {
             } else {
                 showExpiryWarningToast(userExtInfo);
             }
-            // Show password reminder toast for OAuth users without password
-            showPasswordReminderToast(userExtInfo);
         }
     } catch (e) {
         console.debug('[STC-MOD] STC-MOD backend not available:', e.message);
@@ -321,8 +310,14 @@ jQuery(async () => {
         }, 5 * 60 * 1000);
     }
 
-    // Step 5: Show main-site announcements
-    showMainAnnouncements();
+    // Step 5: Show main-site announcements, then password reminder
+    (async () => {
+        await showMainAnnouncements(); // Wait for announcement to close
+        // Show password reminder for OAuth users without password
+        if (userExtInfo) {
+            await showPasswordReminderPopup(userExtInfo);
+        }
+    })();
 });
 
 // ── Expiry Detection & Blocking Popup ────────────────────────
@@ -446,9 +441,9 @@ async function showExpiredPopup() {
 async function showMainAnnouncements() {
     try {
         const r = await fetch('/api/stc/announcements/current');
-        if (!r.ok) return;
+        if (!r.ok) return false;
         const anns = await r.json();
-        if (!anns?.length) return;
+        if (!anns?.length) return false;
 
         // Use SillyTavern's official Popup system (theme-aware)
         const { Popup, POPUP_TYPE } = await import('/scripts/popup.js');
@@ -459,8 +454,10 @@ async function showMainAnnouncements() {
             allowVerticalScrolling: true,
         });
         await popup.show();
+        return true; // Shown successfully
     } catch (e) {
         console.debug('[STC-MOD] Announcement popup error:', e.message);
+        return false;
     }
 }
 
@@ -1447,8 +1444,19 @@ async function wirePasswordCard(content, showMsg, parentPopup) {
                 });
                 const d = await r.json();
                 if (!r.ok || !d.success) throw new Error(d.error || '设置失败');
-                showMsg(`密码设置成功！您的登录凭据：用户名 <strong>${esc(userExtInfo?.handle || '')}</strong>，密码为您刚才设置的密码。下次可使用用户名密码登录。`);
-                await refresh();
+                
+                // Update global userExtInfo to prevent reminder popup on next refresh
+                if (userExtInfo) {
+                    userExtInfo.hasPassword = true;
+                    userExtInfo.passwordSetAt = Date.now();
+                }
+                
+                showMsg(`密码设置成功！<br><br>您的登录凭据：<br>• 用户名：<span style="color:#4a90e2;font-weight:700;font-size:1.05em">${esc(userExtInfo?.handle || '')}</span><br>• 密码：您刚才设置的密码<br><br>下次可使用用户名密码登录，无需依赖第三方服务。`);
+                
+                // Auto-refresh page after 2 seconds to re-establish session
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
             } catch (e) { showMsg('设置失败：' + e.message, false); }
         });
 
@@ -1467,8 +1475,18 @@ async function wirePasswordCard(content, showMsg, parentPopup) {
                 });
                 const d = await r.json();
                 if (!r.ok || !d.success) throw new Error(d.error || '修改失败');
-                showMsg('密码修改成功！');
-                await refresh();
+                
+                // Update metadata timestamp
+                if (userExtInfo) {
+                    userExtInfo.passwordSetAt = Date.now();
+                }
+                
+                showMsg('密码修改成功！页面即将刷新...');
+                
+                // Auto-refresh page after 1.5 seconds to re-establish session
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
             } catch (e) { showMsg('修改失败：' + e.message, false); }
         });
     };
