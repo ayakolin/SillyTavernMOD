@@ -434,7 +434,6 @@ async function enableSecretVault() {
     });
 
     if (!response.ok) {
-        toastr.error('无法启用 API 密钥保险箱。');
         return false;
     }
 
@@ -461,7 +460,6 @@ async function unlockSecretVault() {
     });
 
     if (!response.ok) {
-        toastr.error('无法解锁 API 密钥保险箱。请检查密码后重试。');
         return false;
     }
 

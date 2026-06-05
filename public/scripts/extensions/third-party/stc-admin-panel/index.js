@@ -21,14 +21,69 @@ async function getCsrfHeaders() {
     return h;
 }
 
-// ── Storage quota global fetch interceptor ────────────────────
-// Wrap the native fetch so any 507 response shows a persistent toast.
-(function installStorageGuard() {
+// ── Global fetch interceptors (507 storage quota, API key / vault errors) ──
+(function installStcFetchGuards() {
     const _fetch = window.fetch.bind(window);
+    const PROXY_HINT = '若部署在反向代理或 Cloudflare 后，请在 config.yaml 设置 deployment.trustProxy: 1，并确认反代转发 Host 与 X-Forwarded-Proto；详见 README「反向代理部署」。';
+
+    function getRequestPath(input) {
+        try {
+            const raw = typeof input === 'string'
+                ? input
+                : input instanceof URL
+                    ? input.href
+                    : input?.url;
+            if (!raw) return '';
+            return new URL(raw, window.location.origin).pathname;
+        } catch {
+            return '';
+        }
+    }
+
+    async function describeSecretApiFailure(response, context = 'write') {
+        let body = null;
+        try {
+            body = await response.json();
+        } catch {
+            // ignore non-JSON bodies
+        }
+
+        if (response.status === 403) {
+            if (context === 'write') {
+                return `API 密钥保存失败（403）：登录会话或 CSRF 校验未通过。请刷新页面后重试。${PROXY_HINT}`;
+            }
+            return `请求被拒绝（403）：登录会话或 CSRF 校验未通过。${PROXY_HINT}`;
+        }
+
+        if (response.status === 401) {
+            return '未登录或会话已过期，请重新登录后再试。';
+        }
+
+        if (response.status === 423) {
+            return body?.message || 'API 密钥保险箱已锁定，请先解锁后再保存。';
+        }
+
+        if (response.status === 428) {
+            return body?.message || '保存 API 密钥前须启用保险箱（privacy.secretsVault.requireForApiKeys 已开启）。';
+        }
+
+        if (body?.message) {
+            return body.message;
+        }
+
+        const actionLabel = context === 'vault-enable'
+            ? '启用保险箱'
+            : context === 'vault-unlock'
+                ? '解锁保险箱'
+                : '保存 API 密钥';
+
+        return `${actionLabel}失败（HTTP ${response.status}）。请打开浏览器开发者工具 → Network 查看对应请求详情。`;
+    }
+
     window.fetch = async function (...args) {
         const resp = await _fetch(...args);
+
         if (resp.status === 507) {
-            // Clone so the caller can still read the body if needed
             const clone = resp.clone();
             try {
                 const data = await clone.json();
@@ -36,7 +91,23 @@ async function getCsrfHeaders() {
             } catch {
                 showStorageQuotaToast({});
             }
+            return resp;
         }
+
+        if (!resp.ok) {
+            const path = getRequestPath(args[0]);
+            if (path === '/api/secrets/write' && resp.status !== 423 && resp.status !== 428) {
+                const msg = await describeSecretApiFailure(resp.clone(), 'write');
+                toastr?.error?.(msg);
+            } else if (path === '/api/stc/privacy-vault/enable') {
+                const msg = await describeSecretApiFailure(resp.clone(), 'vault-enable');
+                toastr?.error?.(msg);
+            } else if (path === '/api/stc/privacy-vault/unlock') {
+                const msg = await describeSecretApiFailure(resp.clone(), 'vault-unlock');
+                toastr?.error?.(msg);
+            }
+        }
+
         return resp;
     };
 })();

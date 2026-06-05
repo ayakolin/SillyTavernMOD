@@ -5,7 +5,8 @@
  * This is the sidecar module that provides all SillyTavernchat features
  * as a non-invasive add-on to the official SillyTavern.
  *
- * Exports 5 functions called from server-main.js hook points:
+ * Exports 6 functions called from server-main.js hook points:
+ * - configureTrustProxy(app) -> Reverse proxy trust (before cookie-session)
  * - shouldSkipCsrf(req)    -> CSRF exemption check
  * - setupPublicRoutes(app) -> Page routes (before login middleware)
  * - setupPublicApi(app)    -> Public API routes (no auth required)
@@ -15,6 +16,7 @@ import path from 'node:path';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { ensureDefaultConfig, getStcConfig, getStcDataDir } from './config.js';
+import { configureTrustProxy as applyTrustProxy } from './middleware/trust-proxy.js';
 import { shouldSkipCsrf as csrfCheck } from './middleware/csrf-exemption.js';
 import { expirationCheckMiddleware } from './middleware/expiration-check.js';
 import { registerStorageEnforceMiddleware } from './middleware/storage-enforce.js';
@@ -27,6 +29,14 @@ ensureDefaultConfig();
 
 // Ensure data directories exist
 getStcDataDir();
+
+/**
+ * Reverse proxy trust - called from server-main.js before cookie-session
+ * @param {import('express').Express} app
+ */
+export function configureTrustProxy(app) {
+    applyTrustProxy(app);
+}
 
 /**
  * CSRF exemption check - called from server-main.js skipCsrfProtection

@@ -163,12 +163,18 @@ if (cliArgs.listen) {
     app.use(accessLoggerMiddleware());
 }
 
+// [STC-MOD] Trust reverse proxy before session / CSRF (see deployment.trustProxy in config.yaml)
+if (stcMod?.configureTrustProxy) {
+    stcMod.configureTrustProxy(app);
+}
+
 app.use(cookieSession({
     name: getCookieSessionName(),
     sameSite: 'lax',
     httpOnly: true,
     maxAge: getSessionCookieAge(),
     secret: getCookieSecret(globalThis.DATA_ROOT),
+    secure: 'auto',  // Auto-enable Secure flag when accessed via HTTPS (requires trust proxy)
 }));
 
 app.use(setUserDataMiddleware);

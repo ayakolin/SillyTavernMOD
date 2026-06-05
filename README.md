@@ -10,6 +10,8 @@ LLM Frontend for Power Users
 
 - [项目概览](#项目概览)
 - [运行与基础使用](#运行与基础使用)
+- [使用 Docker 部署（官方镜像）](#使用-docker-部署官方镜像)
+- [反向代理部署（nginx / OpenResty / Cloudflare）](#反向代理部署nginx--openresty--cloudflare)
 - [STC-MOD 功能概览](#stc-mod-功能概览)
 - [升级与二次开发注意事项](#升级与二次开发注意事项)
 - [修改记录 (MODIFICATIONS)](#修改记录-modifications)
@@ -254,6 +256,148 @@ docker run -d \
      保存退出，并重启服务。此后访问站点将不再弹出浏览器级别的用户名/密码框，只保留 SillyTavern 自身的登录校验。
 
 > 若以后希望再次启用 Basic Auth，只需将 `basicAuthMode` 改回 `true` 即可。
+
+---
+
+## 反向代理部署（nginx / OpenResty / Cloudflare）
+
+生产环境常见拓扑为：**浏览器 → 反代（HTTPS）→ SillyTavern 容器（HTTP 8000）**。  
+本地直连 `127.0.0.1:8000` 通常无问题；经反代后若出现 **登录后跳回欢迎页、API 密钥无法保存、保险箱已解锁仍写不进去** 等现象，多半是 **会话 Cookie / CSRF** 在反代链路上不一致，而非业务逻辑本身损坏。
+
+### 🎉 开箱即用：自动反代探测
+
+**从本版本起，Docker + Cloudflare / nginx 部署无需手动配置**。  
+STC-MOD 会自动探测以下环境变量，并在检测到反代时启用 `trust proxy`：
+
+- `HTTP_X_FORWARDED_FOR` / `HTTP_X_FORWARDED_PROTO`（标准反代头）
+- `CF_RAY` / `CF_CONNECTING_IP`（Cloudflare 特征）
+- `BEHIND_PROXY=true`（手动标记）
+
+首次启动日志中应出现（无需改 config）：
+
+```text
+[STC-MOD] Auto-detected reverse proxy environment, enabling trust proxy: 1
+```
+
+> **仍需手动配置反代头**（见下文 nginx 示例）；自动探测只解决应用侧的 `trust proxy` 开关，不代替反代层配置。
+
+### 手动覆盖（可选）
+
+若自动探测不符合预期，可在 **`config/config.yaml`** 中强制指定：
+
+```yaml
+deployment:
+  # false：强制关闭（即使探测到反代）
+  # 1：单层反代（nginx/OpenResty/Caddy）
+  # 2：双层（例如 Cloudflare + 自建反代）
+  # true：信任全部跳数（慎用）
+  trustProxy: 1
+```
+
+修改后重启，日志将显示：`[STC-MOD] Express trust proxy enabled: 1`
+
+### 推荐配置清单
+
+| 项 | 建议 |
+|----|------|
+| 反代层数 | 尽量 **单 upstream** 指向一个 SillyTavern 实例；多副本需 sticky session |
+| 转发头 | 必须正确传递 `Host`、**`X-Forwarded-Proto: https`**（HTTPS 站点） |
+| HTTPS Cookie | 已自动处理（`secure: 'auto'`，反代 HTTPS 时自动带 Secure flag） |
+| CSRF | **不要**长期依赖 `disableCsrfProtection: true` 作为生产方案 |
+| API 密钥保险箱 | 解锁密钥仅保存在 **进程内存**；容器重启后需重新解锁 |
+
+### OpenResty / nginx 示例
+
+以下片段假设 upstream 为 `127.0.0.1:8000`（Docker 映射端口），公网域名为 `ai.example.com`：
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # WebSocket（若使用相关扩展）
+    proxy_set_header Upgrade           $http_upgrade;
+    proxy_set_header Connection        $connection_upgrade;
+
+    proxy_read_timeout 86400;
+}
+```
+
+**请勿**对 `/api/*` 或 HTML 做 aggressive 缓存；Cloudflare 上应对动态 API 使用 **Bypass cache**（见下文 Cloudflare 专章）。
+
+### Cloudflare 部署专项配置
+
+若使用 **Cloudflare 橙云代理**（DNS Proxied），需额外配置：
+
+#### 1. SSL/TLS 模式（必须）
+
+Dashboard → **SSL/TLS** → Overview → 选择 **Full (strict)**
+
+- ❌ **Flexible**（CF → 源站 HTTP，会导致无限重定向）
+- ✅ **Full (strict)**（CF → 源站 HTTPS，需源站有效证书；或 nginx 自签 + `ssl_verify off`）
+
+#### 2. 缓存规则（强烈推荐）
+
+**问题**：Cloudflare 默认会缓存 HTML / API，导致登录后看到旧页面、API key 读写失败。
+
+**解决**：Dashboard → **Caching** → Cache Rules → Create rule
+
+**规则 1：绕过 API 缓存**
+- **If**：`URI Path` → `matches regex` → `^/api/.*`
+- **Then**：Cache eligibility → **Bypass cache**
+
+**规则 2：绕过 HTML 缓存**
+- **If**：`URI Path` → `ends with` → `.html`
+- **Then**：Cache eligibility → **Bypass cache**
+
+或直接设置：
+- **If**：`Hostname` → `equals` → `your-domain.com`
+- **Then**：**Bypass cache** for everything（简单但会增加源站负载）
+
+#### 3. Always Use HTTPS（推荐）
+
+Dashboard → **SSL/TLS** → Edge Certificates → **Always Use HTTPS**：`On`
+
+#### 4. 排查缓存问题
+
+若看到「登录后刷新又回到欢迎页」：
+1. CF Dashboard → **Caching** → **Purge Cache** → Purge Everything
+2. 确认上述 Cache Rules 已生效
+3. 浏览器开发者工具 → Network → 看 Response Headers 中 `cf-cache-status` 应为 `BYPASS` 或 `DYNAMIC`
+
+### API 密钥保险箱与 `requireForApiKeys`
+
+默认配置中 `privacy.secretsVault.requireForApiKeys: true` 表示：**保存 API key 前必须启用并解锁保险箱**，写入链为：
+
+```text
+启用/解锁保险箱 → POST /api/stc/privacy-vault/*
+→ POST /api/secrets/write → 加密写入 data/{用户}/secrets.json
+```
+
+在反代与会话不稳定时，该链路比「仅浏览页面」更容易失败。排查步骤：
+
+1. 浏览器 **开发者工具 → Network**，保存 API key 时查看：
+   - `POST /api/stc/privacy-vault/enable` 或 `unlock` 的状态码
+   - `POST /api/secrets/write` 的状态码（**403** 多为 CSRF/会话；**423** 为保险箱未解锁）
+2. 若 `secrets.json` 仍为 `{}`，说明 **write 从未成功**；按上文启用 `trustProxy` 并检查反代头。
+3. **临时缓解**（不推荐长期使用）：`privacy.secretsVault.requireForApiKeys: false`，允许未启用保险箱时明文保存（仍建议启用保险箱加密）。
+
+自本版本起，保存失败时 **`stc-admin-panel` 扩展** 的全局 `fetch` 拦截会弹出具体 HTTP 状态与反代提示（不修改官方 `secrets.js`），便于与静默失败区分。需确保扩展已加载（Docker 首次启动会自动 seed `stc-admin-panel`）。
+
+### 不建议的做法
+
+- 为「修反代」而扩大 STC 路由的 CSRF 豁免范围（会降低安全性）。
+- 多实例负载均衡 **且** 无 sticky session **且** 强制 `requireForApiKeys: true`（解锁状态不跨进程共享）。
+- 将 `disableCsrfProtection: true` 当作正式部署配置。
+
+更多实现细节见 [MODIFICATIONS.md](MODIFICATIONS.md) 中「部署 / trust proxy / 保险箱」相关说明。
+
+---
 
 ### 6. 使用 PM2 后台守护（生产环境推荐）
 

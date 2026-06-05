@@ -8,20 +8,123 @@
 ## 架构概述
 
 所有二次开发功能以 **Sidecar Module**（外挂模块）方式实现，集中在 `src/stc-mod/` 目录中。
-对官方核心代码的修改仍集中在 **1 个文件**（`src/server-main.js`）：包含 **5 个 STC-MOD 钩子点**，以及 **1 处静态资源缓存策略调整**。
+对官方核心代码的修改仍集中在 **1 个文件**（`src/server-main.js`）：包含 **6 个 STC-MOD 钩子点**，以及 **1 处静态资源缓存策略调整**。
 
 ## 核心文件修改
 
 ### `src/server-main.js`
 
-| 钩子编号 | 实际行号（参考） | 位置描述 | 修改内容 | 目的 |
-|---------|----------------|---------|---------|------|
-| **A** | ~63 | 文件顶部 `import` 语句之后、`Routers` 注释之前 | 添加 `stcMod` 动态导入 | 加载外挂模块（失败时静默跳过，不影响官方功能） |
-| **B** | ~190 | `csrfSync({...})` 的 `skipCsrfProtection` 回调内 | 添加 `stcMod.shouldSkipCsrf(req)` 调用 | 为自定义路由提供 CSRF 豁免 |
-| **C** | ~217 | **`app.get('/', ...)` 之前**（静态文件托管开始前） | 调用 `stcMod.setupPublicRoutes(app)` | 注册自定义页面路由（欢迎页/登录页/注册页等）；**必须在官方 `/` 和 `/login` 路由之前，否则欢迎页被官方路由截断** |
-| **D** | ~254 | `app.use('/api/users', usersPublicRouter)` 之后 | 调用 `stcMod.setupPublicApi(app)` | 注册无需认证的公开 API 路由 |
-| **E** | ~290 | `setupPrivateEndpoints(app)` 调用之后 | 调用 `stcMod.setupPrivateRoutes(app)` | 注册需要认证的私有 API 路由 |
-| **F** | ~248 | `app.use(express.static(path.join(serverDirectory, 'public'), ...))` | 为前端静态资源添加缓存头 | 降低重复加载 JS/CSS/字体/图片的成本，改善 VPS 在中国网络环境下登录后主界面加载速度 |
+> **升级排查**：在仓库根目录执行 `rg "\[STC-MOD\]" src/server-main.js` 可列出全部注入点（当前共 **7 处标记 / 6 个钩子 + 1 处静态缓存替换**）。  
+> 下列行号基于 **SillyTavern 1.18.0 + 当前 MOD** 的 `src/server-main.js`（文件总行数约 **530**）；合并上游后行号会漂移，以 `[STC-MOD]` 注释与相邻官方代码锚点为准。
+
+| 钩子编号 | 行号（当前） | 官方锚点（插入位置） | 修改内容 | 目的 |
+|---------|------------|---------------------|---------|------|
+| **A** | **68–76** | `import { UPLOADS_DIRECTORY } from './constants.js';` 之后、`// Routers` 之前 | 动态 `import('./stc-mod/index.js')` → `stcMod` | 加载 Sidecar 模块 |
+| **G** | **166–169** | `app.use(accessLoggerMiddleware());` 与 `app.use(cookieSession({` **之间** | `stcMod.configureTrustProxy(app)` | 反代：`deployment.trustProxy` → Express `trust proxy`（须在 session/CSRF 之前） |
+| **B** | **203–205** | `csrfSync({ skipCsrfProtection })` 内、`return proxyBypass` 之前 | `stcMod.shouldSkipCsrf(req)` | STC 公开 API 的 CSRF 豁免 |
+| **C** | **230–231** | CSRF 中间件注册完毕之后、`// Static files` / `app.get('/', ...)` **之前** | `stcMod.setupPublicRoutes(app)` | 欢迎页 / 登录页 / 注册页等路由覆盖 |
+| **F** | **263–275** | 官方 `app.use(express.static(..., {}))` **整段替换** | 为 `public/` 静态资源增加 `maxAge` / `Cache-Control` | 降低 VPS 重复下载 JS/CSS |
+| **D** | **280–281** | `app.use('/api/users', usersPublicRouter)` 之后、`requireLoginMiddleware` **之前** | `stcMod.setupPublicApi(app)` | 无需登录的 STC 公开 API |
+| **E** | **316–317** | `setupPrivateEndpoints(app)` 之后 | `stcMod.setupPrivateRoutes(app)` | 需登录的 STC 私有 API |
+
+#### `src/server-main.js` 注入代码全文（便于 diff / 合并上游）
+
+**钩子 A — 第 68–76 行**
+
+```javascript
+// [STC-MOD] SillyTavernchat sidecar module loader
+let stcMod = null;
+try {
+    // @ts-expect-error STC-MOD sidecar has no type declarations
+    stcMod = await import('./stc-mod/index.js');
+    console.log('[STC-MOD] SillyTavernchat module loaded.');
+} catch (e) {
+    if (e.code !== 'ERR_MODULE_NOT_FOUND') console.error('[STC-MOD] Load error:', e.message);
+}
+```
+
+**钩子 G — 第 166–169 行**（⚠ 必须在 `cookieSession` 之前）
+
+```javascript
+// [STC-MOD] Trust reverse proxy before session / CSRF (see deployment.trustProxy in config.yaml)
+if (stcMod?.configureTrustProxy) {
+    stcMod.configureTrustProxy(app);
+}
+```
+
+Sidecar 实现：`src/stc-mod/middleware/trust-proxy.js`；配置项：`config.yaml` → `deployment.trustProxy`（默认 `null`，会**自动探测**反代环境变量；手动设为 `1` 可强制单层反代）。
+
+**同时修改 cookieSession（第 171–177 行）**：
+
+```javascript
+app.use(cookieSession({
+    name: getCookieSessionName(),
+    sameSite: 'lax',
+    httpOnly: true,
+    maxAge: getSessionCookieAge(),
+    secret: getCookieSecret(globalThis.DATA_ROOT),
+    secure: 'auto',  // ✅ 反代 HTTPS 时自动启用 Secure flag
+}));
+```
+
+（原官方代码无 `secure` 字段，需增加 `, secure: 'auto'`）。
+
+**钩子 B — 第 203–205 行**（在 `skipCsrfProtection` 回调内）
+
+```javascript
+            // [STC-MOD] Custom CSRF exemption
+            const stcBypass = stcMod?.shouldSkipCsrf?.(req) ?? false;
+            return proxyBypass || stcBypass;
+```
+
+（原官方代码为 `return proxyBypass;`，需改为 `return proxyBypass || stcBypass;`。）
+
+**钩子 C — 第 230–231 行**
+
+```javascript
+// [STC-MOD] Public routes and page overrides (must be BEFORE official / and /login routes)
+if (stcMod?.setupPublicRoutes) await stcMod.setupPublicRoutes(app);
+```
+
+**改动 F — 第 263–275 行**（替换官方空配置的 `express.static`）
+
+```javascript
+app.use(express.static(path.join(serverDirectory, 'public'), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+        if (/\.(js|css|woff|woff2|ttf|svg|png|jpg|jpeg|gif|ico)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=86400, must-revalidate');
+        }
+        if (/\.html$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+        }
+    },
+}));
+```
+
+**钩子 D — 第 280–281 行**
+
+```javascript
+// [STC-MOD] Additional public API routes (no auth required)
+if (stcMod?.setupPublicApi) await stcMod.setupPublicApi(app);
+```
+
+**钩子 E — 第 316–317 行**
+
+```javascript
+// [STC-MOD] Private routes (requires authentication)
+if (stcMod?.setupPrivateRoutes) await stcMod.setupPrivateRoutes(app);
+```
+
+#### 合并上游时的推荐顺序
+
+1. `rg "\[STC-MOD\]" src/server-main.js` — 若为空则整段按上表重新插入。  
+2. 先恢复 **钩子 A**（后续钩子依赖 `stcMod`）。  
+3. 在 **`cookieSession` 前** 插入 **钩子 G**（易漏，且不宜放到 `setupPublicRoutes` 里）。  
+4. 恢复 **B → C → F → D → E**（C 仍在 `app.get('/')` 之前）。  
+5. 启动后确认日志：`[STC-MOD] SillyTavernchat module loaded.`；若启用反代则另有 `Express trust proxy enabled:`。
 
 > ⚠ **升级注意**：钩子 C 的位置至关重要——必须插入在 `app.get('/', ...)` **之前**，而非仅在 `app.get('/login', ...)` 之前。若顺序错误，未登录用户访问 `/` 时会被官方路由直接跳转到 `/login`，欢迎页永远不会显示。
 
@@ -36,11 +139,13 @@
 
 ### `public/scripts/secrets.js`
 
-配合服务端保险箱接口，在前端新增以下逻辑：
+配合服务端保险箱接口，在前端新增以下逻辑（**STC-MOD 代码块，约第 340–534 行**）：
 - 维护前端的 `secret_vault_state`（是否启用、是否解锁）。
 - 拦截 `writeSecret()`：保存新 API key 时，如保险箱未启用则引导设置密码；如已锁定则引导输入密码。
 - 新增 `maybeOfferVaultMigration()`：当检测到用户有明文 key 且未启用保险箱时，主动弹出迁移提示。
 - 在 `initSecrets()` 初始化阶段，读取状态并提示用户当前是否处于锁定状态。
+
+**反代 / 保存失败的可读错误提示**不在此文件实现，而在 **`stc-admin-panel` 的全局 `fetch` 拦截器**（见下文），以避免继续扩大对官方前端的侵入。
 
 所有新增的前端提示/弹窗为简体中文硬编码，避免了对上游 `public/locales/*.json` 多语言文件的修改。
 
@@ -64,6 +169,12 @@
 
 #### `public/scripts/extensions/third-party/stc-admin-panel/index.js` 悬浮用户面板集成
 
+**全局 fetch 拦截（约第 24–120 行，`installStcFetchGuards`）**  
+在原有 **507 存储配额** 提示基础上，增加对以下失败请求的 toast（不修改官方 `secrets.js`）：
+- `POST /api/secrets/write`（跳过 423/428，由官方 `secrets.js` 触发解锁/启用流程；对其余状态如 **403** 提示反代 + `deployment.trustProxy`）
+- `POST /api/stc/privacy-vault/enable`
+- `POST /api/stc/privacy-vault/unlock`
+
 在 STC Admin Panel 扩展的"我的账户"悬浮面板中新增功能卡片：
 
 **API 密钥保险箱** 卡片：
@@ -86,9 +197,9 @@
 - 提供"立即设置"按钮（打开用户面板）和"稍后提醒"按钮。
 - 15 秒后自动消失。
 
-#### 钩子 A - 模块加载（约第 63 行）
+#### 钩子 A - 模块加载（第 68–76 行）
 
-插入位置：`import cacheBuster from './middleware/cacheBuster.js'` 等 import 语句之后，`// Routers` 注释之前。
+插入位置：`import { UPLOADS_DIRECTORY } from './constants.js';` 之后，`// Routers` 注释之前。
 
 ```javascript
 // [STC-MOD] SillyTavernchat sidecar module loader
@@ -102,7 +213,11 @@ try {
 }
 ```
 
-#### 钩子 B - CSRF 豁免（约第 188–193 行）
+#### 钩子 G - 反代 trust proxy（第 166–169 行）
+
+插入位置：`app.use(cookieSession({...}))` **之前**（须在会话与 CSRF 中间件之前）。完整说明见上文 **`src/server-main.js` 注入代码全文**。
+
+#### 钩子 B - CSRF 豁免（第 203–205 行）
 
 插入位置：`csrfSync({...})` 配置对象的 `skipCsrfProtection` 函数体内，紧接 `proxyBypass` 之后。
 
@@ -115,7 +230,7 @@ skipCsrfProtection: (req) => {
 },
 ```
 
-#### 钩子 C - 公开页面路由（约第 217 行）
+#### 钩子 C - 公开页面路由（第 230–231 行）
 
 ⚠ **插入位置：`// Static files` 注释和 `app.get('/', ...)` 之前。**
 
@@ -130,7 +245,7 @@ app.get('/', cacheBuster.middleware, (request, response) => {
 });
 ```
 
-#### 钩子 D - 公开 API 路由（约第 254 行）
+#### 钩子 D - 公开 API 路由（第 280–281 行）
 
 插入位置：`app.use('/api/users', usersPublicRouter)` 之后、`app.use(requireLoginMiddleware)` 之前。
 
@@ -139,7 +254,7 @@ app.get('/', cacheBuster.middleware, (request, response) => {
 if (stcMod?.setupPublicApi) await stcMod.setupPublicApi(app);
 ```
 
-#### 钩子 E - 私有 API 路由（约第 290 行）
+#### 钩子 E - 私有 API 路由（第 316–317 行）
 
 插入位置：`setupPrivateEndpoints(app)` 调用之后（已登录区域内）。
 
@@ -148,7 +263,7 @@ if (stcMod?.setupPublicApi) await stcMod.setupPublicApi(app);
 if (stcMod?.setupPrivateRoutes) await stcMod.setupPrivateRoutes(app);
 ```
 
-#### 改动 F - 静态资源缓存策略（约第 248 行）
+#### 改动 F - 静态资源缓存策略（第 263–275 行）
 
 替换位置：官方前端静态文件托管语句 `app.use(express.static(path.join(serverDirectory, 'public'), {}));`。
 
@@ -209,6 +324,7 @@ src/stc-mod/
 ├── user-metadata.js                 # 扩展用户数据存储
 ├── middleware/
 │   ├── csrf-exemption.js            # CSRF 豁免规则
+│   ├── trust-proxy.js               # 反代 trust proxy 配置
 │   └── expiration-check.js          # 用户过期检查中间件
 ├── routes/
 │   ├── public/
@@ -311,7 +427,15 @@ privacy:
   secretsVault:
     requireForApiKeys: true          # 是否强制保存 API key 前启用保险箱
     unlockTtlMinutes: 1440           # 保险箱解锁后服务端内存密钥保留时间 (24小时)
+
+deployment:
+  trustProxy: null                   # null = 自动探测反代（推荐）；false = 强制关闭；1/2/true = 手动指定
 ```
+
+**自动探测规则**（默认 `trustProxy: null` 时生效）：
+- 检测 `HTTP_X_FORWARDED_FOR` / `HTTP_X_FORWARDED_PROTO` / `CF_RAY` / `CF_CONNECTING_IP` / `BEHIND_PROXY=true`
+- 若任一环境变量存在，自动设为 `trustProxy: 1`
+- 日志中显示：`[STC-MOD] Auto-detected reverse proxy environment, enabling trust proxy: 1`
 
 ## 部署与性能相关默认配置
 
@@ -409,10 +533,11 @@ enableDownloadableTokenizers: false
 ### 必须操作
 
 1. **拉取官方更新**：正常合并/覆盖官方代码
-2. **重新插入 5 个 STC-MOD 钩子**（在新版 `src/server-main.js` 中）：
-   - 在文件中搜索 `[STC-MOD]` 注释，若已存在则无需修改
-   - 若被覆盖，按上方「具体代码差异」章节逐一插回
-   - **特别注意钩子 C**：必须插在 `app.get('/', ...)` 之前，不能只放在 `/login` 之前
+2. **恢复 `src/server-main.js` 全部 STC 注入点**（6 钩子 + 改动 F）：
+   - 运行 `rg "\[STC-MOD\]" src/server-main.js`，当前应有 **7 行**注释标记
+   - 若被上游覆盖，按上文 **「`src/server-main.js` 注入代码全文」** 与行号表逐一插回
+   - **特别注意钩子 G**：必须在 `app.use(cookieSession(` **之前**，不可挪到 `setupPublicRoutes`
+   - **特别注意钩子 C**：必须在 `app.get('/', ...)` 之前，不能只放在 `/login` 之前
 
 3. **恢复静态资源缓存策略**：
    - 检查 `app.use(express.static(path.join(serverDirectory, 'public'), ...))`

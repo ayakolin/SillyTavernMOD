@@ -110,6 +110,10 @@ export function ensureDefaultConfig() {
                 unlockTtlMinutes: 1440,
             },
         },
+        deployment: {
+            // null/undefined = 自动探测反代环境（推荐）；false = 强制关闭；1 = 单层反代；2 = 双层；true = 信任全部
+            trustProxy: null,
+        },
     };
 
     const config = loadFullConfig();
