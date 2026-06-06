@@ -174,7 +174,6 @@ app.use(cookieSession({
     httpOnly: true,
     maxAge: getSessionCookieAge(),
     secret: getCookieSecret(globalThis.DATA_ROOT),
-    secure: 'auto',  // Auto-enable Secure flag when accessed via HTTPS (requires trust proxy)
 }));
 
 app.use(setUserDataMiddleware);
