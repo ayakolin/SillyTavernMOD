@@ -327,6 +327,99 @@ location / {
     proxy_read_timeout 86400;
 }
 ```
+最小可用示例（HTTP，仅本机/内网测试）
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        $connection_upgrade;
+
+        proxy_read_timeout 86400;
+    }
+}
+
+```
+完整生产示例（HTTPS，推荐）
+```nginx
+# WebSocket 升级映射（放在 http {} 块内，全局只需一次）
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# HTTP 自动跳转 HTTPS
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+
+    # ===== 证书（替换为你的实际路径）=====
+    ssl_certificate     /etc/nginx/ssl/your-domain.com.crt;
+    ssl_certificate_key /etc/nginx/ssl/your-domain.com.key;
+
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    # 上传体积上限（导入角色卡/图片时按需调大）
+    client_max_body_size 100m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+
+        # ===== 关键转发头（STC-MOD 自动反代探测依赖这些）=====
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # ===== WebSocket（流式输出 / 部分扩展需要）=====
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        $connection_upgrade;
+
+        # ===== 长连接超时（避免长回复被截断）=====
+        proxy_read_timeout  86400;
+        proxy_send_timeout  86400;
+
+        # ===== 不缓存动态内容 =====
+        proxy_buffering off;
+    }
+}
+
+
+```
+**注意：**
+
+1. 必须保证 `X-Forwarded-Proto` 与 `Host` 被正确转发——STC-MOD 会在收到首个带
+   `X-Forwarded-*` 头的请求时**自动启用 `trust proxy`**，并联动开启 Secure Cookie，
+   单层 nginx 用户无需手动改 `config.yaml`（详见
+   [MODIFICATIONS.md - 反代 trust proxy](MODIFICATIONS.md#反代-trust-proxy)）。
+2. 测试配置并重载：
+
+   \`\`\`bash
+   nginx -t && nginx -s reload
+   \`\`\`
+
+3. 若仍出现“登录后跳回欢迎页 / API 密钥保存失败”，多为转发头缺失或 SSL 模式问题，
+   可在 `config.yaml` 手动指定 `deployment.trustProxy: 1` 作为兜底。
+
 
 **请勿**对 `/api/*` 或 HTML 做 aggressive 缓存；Cloudflare 上应对动态 API 使用 **Bypass cache**（见下文 Cloudflare 专章）。
 
