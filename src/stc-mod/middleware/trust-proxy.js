@@ -6,33 +6,64 @@ import { getStcConfig } from '../config.js';
 
 /**
  * Apply Express trust proxy setting from config.yaml (`deployment.trustProxy`).
- * Auto-detects reverse proxy environment when not manually configured.
+ *
+ * Priority:
+ *   1. Manual config `deployment.trustProxy` (false / 1 / 2 / true) -> highest, never overridden.
+ *   2. Startup env detection: CF_RAY / CF_CONNECTING_IP / BEHIND_PROXY=true.
+ *   3. Runtime detection: first request carrying X-Forwarded-* headers.
+ *
  * Must run before cookie-session and CSRF middleware.
+ * Sets `app.locals.stcTrustProxyEnabled` so cookie `secure` can follow it.
+ *
  * @param {import('express').Express} app
  */
 export function configureTrustProxy(app) {
-    let value = getStcConfig('deployment.trustProxy', null);
+    const configured = getStcConfig('deployment.trustProxy', null);
 
-    // Auto-detect reverse proxy when not explicitly configured
-    if (value === null || value === undefined) {
-        const autoDetect = 
-            process.env.BEHIND_PROXY === 'true' ||
-            process.env.HTTP_X_FORWARDED_FOR !== undefined ||
-            process.env.HTTP_X_FORWARDED_PROTO !== undefined ||
-            process.env.CF_RAY !== undefined ||  // Cloudflare特征
-            process.env.CF_CONNECTING_IP !== undefined;
-        
-        if (autoDetect) {
-            value = 1;
-            console.log('[STC-MOD] Auto-detected reverse proxy environment, enabling trust proxy: 1');
-            console.log('[STC-MOD] To override, set deployment.trustProxy in config.yaml');
+    // 1. Manual configuration takes precedence and disables auto-detection.
+    if (configured !== null && configured !== undefined && configured !== '') {
+        if (configured === false) {
+            app.locals.stcTrustProxyEnabled = false;
+            return;
         }
-    }
-
-    if (value === false || value === null || value === undefined || value === '') {
+        app.set('trust proxy', configured);
+        app.locals.stcTrustProxyEnabled = true;
+        console.log('[STC-MOD] Express trust proxy enabled (config):', configured);
         return;
     }
 
-    app.set('trust proxy', value);
-    console.log('[STC-MOD] Express trust proxy enabled:', value);
+    // 2. Startup environment detection (Cloudflare / explicit marker).
+    const envDetected =
+        process.env.BEHIND_PROXY === 'true' ||
+        process.env.CF_RAY !== undefined ||
+        process.env.CF_CONNECTING_IP !== undefined;
+
+    if (envDetected) {
+        app.set('trust proxy', 1);
+        app.locals.stcTrustProxyEnabled = true;
+        console.log('[STC-MOD] Auto-detected reverse proxy environment (env), enabling trust proxy: 1');
+        console.log('[STC-MOD] To override, set deployment.trustProxy in config.yaml');
+        return;
+    }
+
+    // 3. Runtime detection: inspect X-Forwarded-* headers on incoming requests.
+    //    process.env.HTTP_X_FORWARDED_* does NOT exist in Node/Express, so we
+    //    must read the actual request headers instead.
+    app.locals.stcTrustProxyEnabled = false;
+    let runtimeApplied = false;
+    app.use((req, _res, next) => {
+        if (runtimeApplied) {
+            return next();
+        }
+        const hasForwarded =
+            req.headers['x-forwarded-for'] !== undefined ||
+            req.headers['x-forwarded-proto'] !== undefined;
+        if (hasForwarded) {
+            runtimeApplied = true;
+            app.set('trust proxy', 1);
+            app.locals.stcTrustProxyEnabled = true;
+            console.log('[STC-MOD] Auto-detected X-Forwarded-* header at runtime, enabling trust proxy: 1');
+        }
+        next();
+    });
 }
