@@ -168,13 +168,21 @@ if (stcMod?.configureTrustProxy) {
     stcMod.configureTrustProxy(app);
 }
 
-app.use(cookieSession({
+// [STC-MOD] Enable Secure cookie ONLY when trust proxy is active (HTTPS via reverse proxy).
+// Local plain HTTP must keep the official default, otherwise the session cookie is dropped
+// and login silently fails (regression seen in 64e5fcc2 with unconditional secure:'auto').
+const stcCookieSessionOptions = {
     name: getCookieSessionName(),
     sameSite: 'lax',
     httpOnly: true,
     maxAge: getSessionCookieAge(),
     secret: getCookieSecret(globalThis.DATA_ROOT),
-}));
+};
+if (app.locals.stcTrustProxyEnabled) {
+    stcCookieSessionOptions.secure = 'auto';
+}
+app.use(cookieSession(stcCookieSessionOptions));
+
 
 app.use(setUserDataMiddleware);
 
