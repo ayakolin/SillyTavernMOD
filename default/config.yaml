@@ -57,7 +57,7 @@ ssl:
   keyPassphrase: ""
 # -- SECURITY CONFIGURATION --
 # Toggle whitelist mode
-whitelistMode: true
+whitelistMode: false
 # When enabled, whitelist will also verify IP in headers enabled in `forwardedHeaders` section.
 enableForwardedWhitelist: true
 
