@@ -2,6 +2,13 @@
  * SillyTavernchat Module - Extended User Metadata
  * Maintains a separate data store for user extension fields (OAuth, email, storage, expiration).
  * Does NOT modify the official users.js user model.
+ *
+ * Persistence design:
+ * - A single in-memory cache (`metadataCache`) is the source of truth at runtime.
+ * - Writes are coalesced and flushed asynchronously to avoid rewriting the whole
+ *   JSON file on every high-frequency update (e.g. heartbeats).
+ * - Disk writes are atomic (write to a temp file, then rename) so a crash or a
+ *   concurrent write can never leave a half-written / corrupted metadata file.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,7 +16,15 @@ import { getStcDataDir } from './config.js';
 
 const METADATA_FILE = 'user-metadata.json';
 
+// How long to wait before flushing coalesced writes to disk (ms).
+const FLUSH_DEBOUNCE_MS = 5000;
+
+/** @type {Object<string, UserExtendedData>|null} */
 let metadataCache = null;
+/** @type {NodeJS.Timeout|null} */
+let flushTimer = null;
+/** Whether the cache has unsaved changes. */
+let dirty = false;
 
 function getMetadataPath() {
     return path.join(getStcDataDir(), METADATA_FILE);
@@ -26,19 +41,77 @@ function loadMetadata() {
         metadataCache = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     } catch (e) {
         console.error('[STC-MOD] Failed to read user metadata:', e.message);
+        // Try to recover from the last good backup rather than silently dropping all data.
+        try {
+            const backup = filePath + '.bak';
+            if (fs.existsSync(backup)) {
+                metadataCache = JSON.parse(fs.readFileSync(backup, 'utf8'));
+                console.warn('[STC-MOD] Recovered user metadata from backup.');
+                return metadataCache;
+            }
+        } catch { /* fall through */ }
         metadataCache = {};
     }
     return metadataCache;
 }
 
-function saveMetadata() {
+/**
+ * Atomically persist the current cache to disk.
+ * Writes to a temp file and renames over the target so readers never observe a
+ * partially written file. Keeps a single `.bak` copy of the previous good file.
+ */
+function flushSync() {
+    if (!metadataCache || !dirty) return;
+    const filePath = getMetadataPath();
+    const tmpPath = `${filePath}.${process.pid}.tmp`;
     try {
-        const filePath = getMetadataPath();
-        fs.writeFileSync(filePath, JSON.stringify(metadataCache, null, 2), 'utf8');
+        const data = JSON.stringify(metadataCache, null, 2);
+        fs.writeFileSync(tmpPath, data, 'utf8');
+        // Preserve the previous file as a backup before replacing it.
+        if (fs.existsSync(filePath)) {
+            try { fs.copyFileSync(filePath, filePath + '.bak'); } catch { /* best-effort */ }
+        }
+        fs.renameSync(tmpPath, filePath);
+        dirty = false;
     } catch (e) {
         console.error('[STC-MOD] Failed to save user metadata:', e.message);
+        try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch { /* ignore */ }
     }
 }
+
+/**
+ * Mark the cache dirty and schedule a debounced flush.
+ * @param {boolean} [immediate] When true, flush synchronously right away.
+ */
+function scheduleFlush(immediate = false) {
+    dirty = true;
+    if (immediate) {
+        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+        flushSync();
+        return;
+    }
+    // Always ensure a timer is scheduled when dirty=true. If a timer already
+    // exists, don't replace it (let it run), but if no timer is running, start one.
+    if (!flushTimer) {
+        flushTimer = setTimeout(() => {
+            flushTimer = null;
+            flushSync();
+        }, FLUSH_DEBOUNCE_MS);
+        flushTimer.unref?.();
+    }
+}
+
+// Ensure pending changes are persisted on shutdown.
+let exitHooked = false;
+function ensureExitHook() {
+    if (exitHooked) return;
+    exitHooked = true;
+    const onExit = () => flushSync();
+    process.once('exit', onExit);
+    process.once('SIGINT', () => { flushSync(); process.exit(0); });
+    process.once('SIGTERM', () => { flushSync(); process.exit(0); });
+}
+ensureExitHook();
 
 /**
  * @typedef {Object} UserExtendedData
@@ -50,7 +123,8 @@ function saveMetadata() {
  * @property {string} [storageLastCheckInDate] - Last check-in date (YYYY-MM-DD)
  * @property {number} [expiresAt] - Account expiration timestamp (ms), 0 = permanent
  * @property {number} [createdAt] - Registration timestamp
- * @property {number} [lastLoginAt] - Last login timestamp
+ * @property {number} [lastLoginAt] - Last login timestamp (set only on actual login)
+ * @property {number} [lastActiveAt] - Last activity timestamp (set on login and heartbeat)
  * @property {string} [inviteCodeUsed] - Invite code used for registration
  * @property {boolean} [hasPassword] - Whether user has set a password (for OAuth users)
  * @property {number} [passwordSetAt] - Timestamp when password was set/updated
@@ -64,21 +138,25 @@ function saveMetadata() {
  */
 export function getUserMeta(handle) {
     const meta = loadMetadata();
+    if (!meta) return null;
     return meta[handle] || null;
 }
 
 /**
- * Set extended data for a user (merge with existing)
+ * Set extended data for a user (merge with existing).
  * @param {string} handle User handle
  * @param {Partial<UserExtendedData>} data Data to merge
+ * @param {object} [opts]
+ * @param {boolean} [opts.immediate] Flush to disk synchronously instead of debounced.
  */
-export function setUserMeta(handle, data) {
+export function setUserMeta(handle, data, opts = {}) {
     const meta = loadMetadata();
+    if (!meta) return; // Defensive: should never happen
     if (!meta[handle]) {
         meta[handle] = {};
     }
     Object.assign(meta[handle], data);
-    saveMetadata();
+    scheduleFlush(opts.immediate === true);
 }
 
 /**
@@ -87,8 +165,9 @@ export function setUserMeta(handle, data) {
  */
 export function deleteUserMeta(handle) {
     const meta = loadMetadata();
+    if (!meta) return; // Defensive: should never happen
     delete meta[handle];
-    saveMetadata();
+    scheduleFlush(true);
 }
 
 /**
@@ -96,7 +175,7 @@ export function deleteUserMeta(handle) {
  * @returns {Object<string, UserExtendedData>}
  */
 export function getAllUserMeta() {
-    return { ...loadMetadata() };
+    return { ...(loadMetadata() || {}) };
 }
 
 /**
@@ -119,6 +198,7 @@ export function isUserExpired(handle) {
  */
 export function findUserByOAuth(provider, oauthUserId) {
     const meta = loadMetadata();
+    if (!meta) return null;
     for (const [handle, data] of Object.entries(meta)) {
         if (data.oauthProvider === provider && String(data.oauthUserId) === String(oauthUserId)) {
             return handle;
@@ -135,6 +215,7 @@ export function findUserByOAuth(provider, oauthUserId) {
 export function findUserByEmail(email) {
     if (!email) return null;
     const meta = loadMetadata();
+    if (!meta) return null;
     const lowerEmail = email.toLowerCase();
     for (const [handle, data] of Object.entries(meta)) {
         if (data.email && data.email.toLowerCase() === lowerEmail) {
@@ -145,11 +226,86 @@ export function findUserByEmail(email) {
 }
 
 /**
- * Update user's last login timestamp
+ * Record an actual login event.
+ * Updates both lastLoginAt (login-only) and lastActiveAt. Flushed immediately
+ * because logins are infrequent and we want them durable.
  * @param {string} handle
  */
 export function recordLogin(handle) {
-    setUserMeta(handle, { lastLoginAt: Date.now() });
+    const now = Date.now();
+    setUserMeta(handle, { lastLoginAt: now, lastActiveAt: now }, { immediate: true });
+}
+
+/**
+ * Record a lightweight activity ping (e.g. heartbeat).
+ * Updates only lastActiveAt and uses the debounced flush, so frequent pings do
+ * not hammer the disk. Skips redundant updates within the debounce window.
+ * @param {string} handle
+ */
+export function recordActivity(handle) {
+    const cache = loadMetadata();
+    if (!cache) return; // Defensive: should never happen
+    const meta = cache[handle] || {};
+    const now = Date.now();
+    
+    // Avoid scheduling a write for near-duplicate pings within the debounce window.
+    if (meta.lastActiveAt && now - meta.lastActiveAt < FLUSH_DEBOUNCE_MS) {
+        // Update in-memory value for immediate reads, and ensure a flush is scheduled.
+        cache[handle] = { ...meta, lastActiveAt: now };
+        scheduleFlush(false); // Guarantees a timer exists to persist this change
+        return;
+    }
+    
+    // Outside debounce window: treat as a fresh activity update.
+    setUserMeta(handle, { lastActiveAt: now });
+}
+
+/**
+ * Resolve the best-known activity timestamp for a user, falling back across
+ * lastActiveAt -> lastLoginAt -> createdAt. Central helper so every caller uses
+ * the same definition of "activity" (no more divergent criteria).
+ * @param {UserExtendedData|null|undefined} meta
+ * @returns {number} timestamp in ms, or 0 if unknown
+ */
+export function resolveActivityTime(meta) {
+    if (!meta) return 0;
+    return meta.lastActiveAt || meta.lastLoginAt || meta.createdAt || 0;
+}
+
+/**
+ * Compute aggregate user statistics for the admin dashboard.
+ * Calculated server-side so the frontend does not have to iterate all metadata.
+ * @param {object} [opts]
+ * @param {number} [opts.activeWindowDays] Window (days) to count a user as active. Default 7.
+ * @returns {{ total:number, active:number, inactive:number, expired:number, newToday:number, activeWindowDays:number }}
+ */
+export function getUserStats(opts = {}) {
+    const activeWindowDays = opts.activeWindowDays ?? 7;
+    const meta = loadMetadata();
+    if (!meta) return { total: 0, active: 0, inactive: 0, expired: 0, newToday: 0, activeWindowDays };
+    
+    const now = Date.now();
+    const activeThreshold = activeWindowDays * 24 * 60 * 60 * 1000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfTodayMs = startOfToday.getTime();
+
+    let total = 0, active = 0, expired = 0, newToday = 0;
+    for (const [handle, data] of Object.entries(meta)) {
+        total++;
+        const lastActive = resolveActivityTime(data);
+        if (lastActive && now - lastActive <= activeThreshold) active++;
+        if (isUserExpired(handle)) expired++;
+        if (data.createdAt && data.createdAt >= startOfTodayMs) newToday++;
+    }
+
+    return {
+        total,
+        active,
+        inactive: total - active,
+        expired,
+        newToday,
+        activeWindowDays,
+    };
 }
 
 /**
@@ -160,19 +316,29 @@ export function recordLogin(handle) {
  */
 export function extendExpiration(handle, durationMs) {
     if (durationMs === 0) {
-        setUserMeta(handle, { expiresAt: 0 });
+        setUserMeta(handle, { expiresAt: 0 }, { immediate: true });
         return;
     }
-    const meta = getUserMeta(handle) || {};
+    const meta = getUserMeta(handle);
+    if (!meta) return; // User doesn't exist
     const now = Date.now();
     const currentExpiry = meta.expiresAt ?? now;
     const base = (currentExpiry !== 0 && currentExpiry > now) ? currentExpiry : now;
-    setUserMeta(handle, { expiresAt: base + durationMs });
+    setUserMeta(handle, { expiresAt: base + durationMs }, { immediate: true });
 }
 
 /**
- * Invalidate the in-memory cache (for testing or force-reload)
+ * Force an immediate synchronous flush of pending changes (for tests/admin ops).
+ */
+export function flushMetadata() {
+    flushSync();
+}
+
+/**
+ * Invalidate the in-memory cache (for testing or force-reload).
+ * Flushes pending changes first so nothing is lost.
  */
 export function invalidateCache() {
+    flushSync();
     metadataCache = null;
 }

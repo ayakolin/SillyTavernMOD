@@ -429,13 +429,16 @@ privacy:
     unlockTtlMinutes: 1440           # 保险箱解锁后服务端内存密钥保留时间 (24小时)
 
 deployment:
-  trustProxy: null                   # null = 自动探测反代（推荐）；false = 强制关闭；1/2/true = 手动指定
+  trustProxy: false                  # false = 不信任反代（默认）；1 = 单层；2 = 双层；'cloudflare' = 仅信任 CF IP 段；true = 信任全部
 ```
 
-**自动探测规则**（默认 `trustProxy: null` 时生效）：
-- 检测 `HTTP_X_FORWARDED_FOR` / `HTTP_X_FORWARDED_PROTO` / `CF_RAY` / `CF_CONNECTING_IP` / `BEHIND_PROXY=true`
-- 若任一环境变量存在，自动设为 `trustProxy: 1`
-- 日志中显示：`[STC-MOD] Auto-detected reverse proxy environment, enabling trust proxy: 1`
+**手动配置（无自动探测）**：
+- `deployment.trustProxy` 仅从 `config.yaml` 读取，需按实际拓扑手动设置。
+- 旧版的环境变量探测（`HTTP_X_FORWARDED_*` / `CF_RAY` / `CF_CONNECTING_IP`）在 Node/Express 中**从不生效**（这些是 CGI/PHP 约定，不会进入 `process.env`），已移除。
+- 运行时按 `X-Forwarded-*` 请求头探测也已移除：它可被直连容器的伪造头触发，让应用信任伪造来源 IP。
+- 启动日志：设为非 `false` 时显示 `[STC-MOD] Express trust proxy enabled (config): <值>`；`'cloudflare'` 模式显示 `... (cloudflare): trusting Cloudflare IP ranges + CF-Connecting-IP`。
+- `'cloudflare'` 模式：仅信任 [Cloudflare 公布 IP 段](https://www.cloudflare.com/ips/)，并用 `CF-Connecting-IP` 取真实访客 IP。
+- Cookie `secure: 'auto'` 仅在 `trustProxy` 为非 `false` 时联动开启，避免本地 HTTP 下会话 Cookie 被丢弃。
 
 ## 部署与性能相关默认配置
 

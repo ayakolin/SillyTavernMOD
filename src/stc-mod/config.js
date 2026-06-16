@@ -111,8 +111,13 @@ export function ensureDefaultConfig() {
             },
         },
         deployment: {
-            // null/undefined = 自动探测反代环境（推荐）；false = 强制关闭；1 = 单层反代；2 = 双层；true = 信任全部
-            trustProxy: null,
+            // 反向代理信任设置（手动配置，无自动探测）。
+            // false = 不信任任何反代（默认，本地 HTTP 直连用）；
+            // 1 = 单层反代（nginx/OpenResty/Caddy）；
+            // 2 = 双层（例如 Cloudflare + 自建反代）；
+            // 'cloudflare' = 仅信任 Cloudflare IP 段并使用 CF-Connecting-IP 取真实访客 IP；
+            // true = 信任全部跳数（不推荐）。
+            trustProxy: false,
         },
     };
 

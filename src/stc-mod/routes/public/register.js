@@ -126,6 +126,7 @@ router.post('/register', async (req, res) => {
             expiresAt,
             createdAt: Date.now(),
             lastLoginAt: Date.now(),
+            lastActiveAt: Date.now(),
             inviteCodeUsed: inviteCode || null,
             storageLimitMiB: isStorageLimitEnabled() ? getDefaultLimitMiB() : undefined,
             hasPassword: !!(password && password.length > 0),

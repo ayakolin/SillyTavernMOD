@@ -7,13 +7,74 @@ import { promises as fsPromises } from 'fs';
 import fs from 'fs';
 import path from 'path';
 import storage from 'node-persist';
-import { getUserMeta, setUserMeta, getAllUserMeta, isUserExpired, deleteUserMeta } from '../../user-metadata.js';
+import { getUserMeta, setUserMeta, getAllUserMeta, isUserExpired, deleteUserMeta, recordActivity, resolveActivityTime, getUserStats } from '../../user-metadata.js';
 import * as invitationService from '../../services/invitation-codes.js';
 import { getUserStorageInfo, dailyCheckIn, canUserWrite, useStorageCode, calculateUserStorage } from '../../services/storage-quota.js';
 import { requireAdminMiddleware, getAllUserHandles, toKey, getUserDirectories } from '../../../users.js';
 import { getStcConfig } from '../../config.js';
 
 export const router = express.Router();
+
+// Fine-grained deletion locks: Map<handle, Promise>
+// Each user's deletion operation is tracked independently, so concurrent deletions
+// of different users proceed in parallel, but duplicate deletions of the same
+// user are blocked until the first completes.
+const userDeletionLocks = new Map();
+
+/**
+ * Acquire a deletion lock for a user. Returns a Promise that resolves when the
+ * lock is acquired (i.e., no other deletion is in progress for this user).
+ * @param {string} handle
+ * @returns {Promise<() => void>} Resolves with a release function
+ */
+async function acquireUserDeletionLock(handle) {
+    // Wait for any existing deletion of this user to complete
+    while (userDeletionLocks.has(handle)) {
+        await userDeletionLocks.get(handle);
+    }
+    
+    // Create a new lock for this user
+    let releaseFn;
+    const lockPromise = new Promise(resolve => { releaseFn = resolve; });
+    userDeletionLocks.set(handle, lockPromise);
+    
+    // Return a release function that removes the lock
+    return () => {
+        userDeletionLocks.delete(handle);
+        releaseFn();
+    };
+}
+
+/**
+ * Delete a single user with all their data (registry + files + metadata).
+ * Wrapped with a lock to prevent concurrent deletion of the same user.
+ * @param {string} handle
+ * @returns {Promise<{success: boolean, error: string}>}
+ */
+async function deleteUserWithLock(handle) {
+    if (!handle || handle === 'default-user') {
+        return { success: false, error: 'Invalid or protected handle' };
+    }
+    
+    const release = await acquireUserDeletionLock(handle);
+    try {
+        // 1. Remove from SillyTavern user registry (node-persist)
+        await storage.removeItem(toKey(handle));
+        
+        // 2. Delete user data directory (chats, characters, backups, etc.)
+        const dirs = getUserDirectories(handle);
+        await fsPromises.rm(dirs.root, { recursive: true, force: true });
+        
+        // 3. Remove STC extended metadata
+        deleteUserMeta(handle);
+        
+        return { success: true, error: '' };
+    } catch (error) {
+        return { success: false, error: error.message || 'Unknown error' };
+    } finally {
+        release();
+    }
+}
 
 // Get extended user info (current user)
 router.get('/me-ext', (req, res) => {
@@ -28,6 +89,7 @@ router.get('/me-ext', (req, res) => {
         expiresAt: meta.expiresAt,
         createdAt: meta.createdAt,
         lastLoginAt: meta.lastLoginAt,
+        lastActiveAt: meta.lastActiveAt,
         hasPassword: meta.hasPassword,
         passwordSetAt: meta.passwordSetAt,
         registrationMethod: meta.registrationMethod,
@@ -60,10 +122,10 @@ router.post('/renew', (req, res) => {
     }
 });
 
-// Heartbeat
+// Heartbeat - records lightweight activity (debounced write), not a login.
 router.post('/heartbeat', (req, res) => {
     const handle = req.user?.profile?.handle;
-    if (handle) setUserMeta(handle, { lastLoginAt: Date.now() });
+    if (handle) recordActivity(handle);
     res.sendStatus(204);
 });
 
@@ -103,66 +165,74 @@ router.get('/all-meta', requireAdminMiddleware, (req, res) => {
     res.json(getAllUserMeta());
 });
 
+// Admin: aggregate user statistics (computed server-side; frontend need not iterate)
+router.get('/stats', requireAdminMiddleware, (req, res) => {
+    const activeWindowDays = Number(req.query.activeWindowDays) || 7;
+    res.json(getUserStats({ activeWindowDays }));
+});
+
 /**
- * Get the last chat time for a user by scanning their chats directory
+ * Get the last chat modification time for a user by scanning their chats directory.
+ * Async + bounded concurrency so a large user base does not block the event loop.
  * @param {string} handle - User handle
- * @returns {number|null} - Timestamp of last chat modification, or null if no chats
+ * @returns {Promise<number|null>} - Timestamp (ms) of last chat modification, or null
  */
-function getLastChatTime(handle) {
+async function getLastChatTime(handle) {
     try {
         const dirs = getUserDirectories(handle);
         const chatsDir = dirs.chats;
 
-        if (!fs.existsSync(chatsDir)) {
-            return null;
+        /** @type {string[]} */
+        let files;
+        try {
+            files = await fsPromises.readdir(chatsDir);
+        } catch {
+            return null; // directory missing or unreadable
         }
-
-        const files = fs.readdirSync(chatsDir);
-        if (files.length === 0) {
-            return null;
-        }
+        if (files.length === 0) return null;
 
         let lastTime = 0;
-        for (const file of files) {
-            const filePath = path.join(chatsDir, file);
+        const stats = await Promise.all(files.map(async (file) => {
             try {
-                const stats = fs.statSync(filePath);
-                if (stats.isFile() && stats.mtimeMs > lastTime) {
-                    lastTime = stats.mtimeMs;
-                }
-            } catch (e) {
-                // Skip files that can't be read
-                continue;
+                const s = await fsPromises.stat(path.join(chatsDir, file));
+                return s.isFile() ? s.mtimeMs : 0;
+            } catch {
+                return 0;
             }
+        }));
+        for (const t of stats) {
+            if (t > lastTime) lastTime = t;
         }
 
         return lastTime > 0 ? Math.floor(lastTime) : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
 
-// Admin: get users with expiration info
+// Admin: get users with expiration + activity info.
+// Activity is derived from a single source of truth (metadata lastActiveAt /
+// lastLoginAt / createdAt) so it is consistent with the deletion criteria.
+// lastChatTime is provided as supplementary display info only.
 router.get('/expiration-list', requireAdminMiddleware, async (req, res) => {
     try {
         const allMeta = getAllUserMeta();
         const handles = await getAllUserHandles();
-        const result = handles.map(h => {
-            const lastChatTime = getLastChatTime(h);
+        const result = await Promise.all(handles.map(async (h) => {
+            const meta = allMeta[h] || {};
+            const lastChatTime = await getLastChatTime(h);
             return {
                 handle: h,
                 expired: isUserExpired(h),
                 lastChatTime,
-                ...(allMeta[h] || {}),
+                // Unified activity timestamp used everywhere (list + deletion).
+                lastActiveAt: resolveActivityTime(meta),
+                ...meta,
             };
-        });
+        }));
 
-        // Sort by lastChatTime (most recent first), then by lastLoginAt
-        result.sort((a, b) => {
-            const aTime = a.lastChatTime || a.lastLoginAt || a.createdAt || 0;
-            const bTime = b.lastChatTime || b.lastLoginAt || b.createdAt || 0;
-            return bTime - aTime;
-        });
+        // Sort by the unified activity timestamp (most recent first).
+        result.sort((a, b) => resolveActivityTime(b) - resolveActivityTime(a));
 
         res.json(result);
     } catch (error) {
@@ -184,7 +254,7 @@ router.post('/delete-inactive', requireAdminMiddleware, async (req, res) => {
 
         for (const [handle, meta] of Object.entries(allMeta)) {
             if (handle === 'default-user') continue;
-            const lastActive = meta.lastLoginAt || meta.createdAt || 0;
+            const lastActive = resolveActivityTime(meta);
             if (now - lastActive > threshold) {
                 // Skip users with significant data (storage >= minStorageMB)
                 if (minStorageBytes > 0) {
@@ -259,20 +329,13 @@ router.post('/delete-inactive', requireAdminMiddleware, async (req, res) => {
         /** @type {Array<{handle:string,error:string}>} */
         const purgeErrors = [];
         for (const c of candidates) {
-            try {
-                // 1. Remove from SillyTavern user registry (node-persist)
-                await storage.removeItem(toKey(c.handle));
-                // 2. Delete user data directory (chats, characters, backups, etc.)
-                const dirs = getUserDirectories(c.handle);
-                await fsPromises.rm(dirs.root, { recursive: true, force: true });
-            } catch (e) {
-                purgeErrors.push({ handle: c.handle, error: e.message });
+            const result = await deleteUserWithLock(c.handle);
+            if (!result.success) {
+                purgeErrors.push({ handle: c.handle, error: result.error });
             }
-            // 3. Remove STC extended metadata
-            deleteUserMeta(c.handle);
         }
 
-        res.json({ deleted: candidates.length, handles: candidates.map(c => c.handle), emailResults, purgeErrors });
+        res.json({ deleted: candidates.length - purgeErrors.length, handles: candidates.map(c => c.handle), emailResults, purgeErrors });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -296,7 +359,7 @@ router.post('/warn-inactive', requireAdminMiddleware, async (req, res) => {
 
         for (const [handle, meta] of Object.entries(allMeta)) {
             if (handle === 'default-user') continue;
-            const lastActive = meta.lastLoginAt || meta.createdAt || 0;
+            const lastActive = resolveActivityTime(meta);
             if (now - lastActive > threshold) {
                 // Skip users with significant data
                 if (minStorageBytes > 0 && calculateUserStorage(handle) >= minStorageBytes) continue;
@@ -399,18 +462,11 @@ router.post('/delete-batch', requireAdminMiddleware, async (req, res) => {
         const results = { deleted: [], failed: [] };
 
         for (const handle of handles) {
-            if (!handle || handle === 'default-user') {
-                results.failed.push({ handle, error: '不能删除默认用户或无效用户名' });
-                continue;
-            }
-            try {
-                await storage.removeItem(toKey(handle));
-                const dirs = getUserDirectories(handle);
-                await fsPromises.rm(dirs.root, { recursive: true, force: true });
-                deleteUserMeta(handle);
+            const result = await deleteUserWithLock(handle);
+            if (result.success) {
                 results.deleted.push(handle);
-            } catch (e) {
-                results.failed.push({ handle, error: e.message });
+            } else {
+                results.failed.push({ handle, error: result.error });
             }
         }
 
@@ -424,20 +480,13 @@ router.post('/delete-batch', requireAdminMiddleware, async (req, res) => {
 router.post('/delete-single', requireAdminMiddleware, async (req, res) => {
     try {
         const { handle } = req.body;
-        if (!handle) return res.status(400).json({ error: '缺少用户名' });
-        if (handle === 'default-user') return res.status(400).json({ error: '不能删除默认用户' });
-
-        // 1. Remove from SillyTavern user registry
-        await storage.removeItem(toKey(handle));
-
-        // 2. Delete user data directory
-        const dirs = getUserDirectories(handle);
-        await fsPromises.rm(dirs.root, { recursive: true, force: true });
-
-        // 3. Remove STC extended metadata
-        deleteUserMeta(handle);
-
-        res.json({ success: true, message: `用户 ${handle} 已删除` });
+        const result = await deleteUserWithLock(handle);
+        
+        if (result.success) {
+            res.json({ success: true, message: `用户 ${handle} 已删除` });
+        } else {
+            res.status(400).json({ error: result.error });
+        }
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

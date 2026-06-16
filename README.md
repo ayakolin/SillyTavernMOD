@@ -264,37 +264,40 @@ docker run -d \
 生产环境常见拓扑为：**浏览器 → 反代（HTTPS）→ SillyTavern 容器（HTTP 8000）**。  
 本地直连 `127.0.0.1:8000` 通常无问题；经反代后若出现 **登录后跳回欢迎页、API 密钥无法保存、保险箱已解锁仍写不进去** 等现象，多半是 **会话 Cookie / CSRF** 在反代链路上不一致，而非业务逻辑本身损坏。
 
-### 🎉 开箱即用：自动反代探测
+### 必须手动配置 `trust proxy`
 
-**从本版本起，Docker + Cloudflare / nginx 部署无需手动配置**。  
-STC-MOD 会自动探测以下环境变量，并在检测到反代时启用 `trust proxy`：
+> **从本版本起，反代信任改为手动显式配置，不再自动探测。**  
+> 旧版本的「环境变量自动探测」在 Node/Express 中实际无效（`HTTP_X_FORWARDED_*`、`CF_RAY` 等并不会出现在 `process.env` 里）；而运行时按请求头探测又可被直连容器伪造 `X-Forwarded-*` 头攻击，从而伪造来源 IP。因此现在统一要求在 `config.yaml` 中明确声明部署拓扑。
 
-- `HTTP_X_FORWARDED_FOR` / `HTTP_X_FORWARDED_PROTO`（标准反代头）
-- `CF_RAY` / `CF_CONNECTING_IP`（Cloudflare 特征）
-- `BEHIND_PROXY=true`（手动标记）
-
-首次启动日志中应出现（无需改 config）：
-
-```text
-[STC-MOD] Auto-detected reverse proxy environment, enabling trust proxy: 1
-```
-
-> **仍需手动配置反代头**（见下文 nginx 示例）；自动探测只解决应用侧的 `trust proxy` 开关，不代替反代层配置。
-
-### 手动覆盖（可选）
-
-若自动探测不符合预期，可在 **`config/config.yaml`** 中强制指定：
+在 **`config/config.yaml`** 中按你的实际拓扑设置：
 
 ```yaml
 deployment:
-  # false：强制关闭（即使探测到反代）
-  # 1：单层反代（nginx/OpenResty/Caddy）
-  # 2：双层（例如 Cloudflare + 自建反代）
-  # true：信任全部跳数（慎用）
+  # false       不信任任何反代（默认；本地 HTTP 直连用）
+  # 1           单层反代（nginx / OpenResty / Caddy 直连源站）
+  # 2           双层反代（例如 Cloudflare + 自建 nginx）
+  # 'cloudflare' 仅信任 Cloudflare IP 段，并用 CF-Connecting-IP 取真实访客 IP（CF 橙云推荐）
+  # true        信任全部跳数（不推荐，易被伪造）
   trustProxy: 1
 ```
 
-修改后重启，日志将显示：`[STC-MOD] Express trust proxy enabled: 1`
+常见选择：
+
+| 部署拓扑 | 建议值 |
+|----------|--------|
+| 仅本机 / 内网 HTTP 直连 | `false`（默认） |
+| 单层 nginx / OpenResty / Caddy → 源站 | `1` |
+| Cloudflare 橙云 → 自建 nginx → 源站 | `2` 或 `'cloudflare'` |
+| Cloudflare 橙云直连源站（无自建反代） | `'cloudflare'` |
+
+修改后重启容器/进程，启动日志应出现其一：
+
+```text
+[STC-MOD] Express trust proxy enabled (config): 1
+[STC-MOD] Express trust proxy enabled (cloudflare): trusting Cloudflare IP ranges + CF-Connecting-IP
+```
+
+> 设为 `false`（或留空）时不打印该日志，且会话 Cookie 保持非 Secure，适用于本地 HTTP；经反代 HTTPS 部署务必设置为非 `false` 值，否则登录会话可能异常。
 
 ### 推荐配置清单
 
@@ -302,7 +305,7 @@ deployment:
 |----|------|
 | 反代层数 | 尽量 **单 upstream** 指向一个 SillyTavern 实例；多副本需 sticky session |
 | 转发头 | 必须正确传递 `Host`、**`X-Forwarded-Proto: https`**（HTTPS 站点） |
-| HTTPS Cookie | 已自动处理（`secure: 'auto'`，反代 HTTPS 时自动带 Secure flag） |
+| HTTPS Cookie | 设置 `trustProxy` 为非 `false` 后自动联动 `secure: 'auto'`，反代 HTTPS 时带 Secure flag；本地 HTTP（`false`）保持非 Secure |
 | CSRF | **不要**长期依赖 `disableCsrfProtection: true` 作为生产方案 |
 | API 密钥保险箱 | 解锁密钥仅保存在 **进程内存**；容器重启后需重新解锁 |
 
@@ -407,9 +410,9 @@ server {
 ```
 **注意：**
 
-1. 必须保证 `X-Forwarded-Proto` 与 `Host` 被正确转发——STC-MOD 会在收到首个带
-   `X-Forwarded-*` 头的请求时**自动启用 `trust proxy`**，并联动开启 Secure Cookie，
-   单层 nginx 用户无需手动改 `config.yaml`（详见
+1. 必须保证 `X-Forwarded-Proto` 与 `Host` 被正确转发，并在 `config.yaml` 中
+   **手动设置 `deployment.trustProxy`**（单层 nginx 设 `1`）。STC-MOD 据此启用
+   `trust proxy` 并联动 Secure Cookie（详见
    [MODIFICATIONS.md - 反代 trust proxy](MODIFICATIONS.md#反代-trust-proxy)）。
 2. 测试配置并重载：
 
@@ -417,8 +420,8 @@ server {
    nginx -t && nginx -s reload
    \`\`\`
 
-3. 若仍出现“登录后跳回欢迎页 / API 密钥保存失败”，多为转发头缺失或 SSL 模式问题，
-   可在 `config.yaml` 手动指定 `deployment.trustProxy: 1` 作为兜底。
+3. 若仍出现“登录后跳回欢迎页 / API 密钥保存失败”，多为转发头缺失、SSL 模式问题，
+   或 `config.yaml` 未设置 `deployment.trustProxy`。请确认该项已按拓扑正确配置。
 
 
 **请勿**对 `/api/*` 或 HTML 做 aggressive 缓存；Cloudflare 上应对动态 API 使用 **Bypass cache**（见下文 Cloudflare 专章）。
@@ -433,6 +436,21 @@ Dashboard → **SSL/TLS** → Overview → 选择 **Full (strict)**
 
 - ❌ **Flexible**（CF → 源站 HTTP，会导致无限重定向）
 - ✅ **Full (strict)**（CF → 源站 HTTPS，需源站有效证书；或 nginx 自签 + `ssl_verify off`）
+
+> **真实访客 IP（Cloudflare）**：经 CF 后，`X-Forwarded-For` 可能是 CF 边缘 IP 而非访客真实 IP，
+> 且 CF 的真实访客 IP 在 `CF-Connecting-IP` 头。若你需要准确的限流 / 审计 IP，
+> 建议在 `config.yaml` 设 `deployment.trustProxy: 'cloudflare'`：该模式仅信任
+> [Cloudflare 公布的 IP 段](https://www.cloudflare.com/ips/)，并使用 `CF-Connecting-IP` 取真实 IP。
+
+#### ⚠ 安全：不要直接暴露源站端口
+
+本版本默认已关闭 `whitelistMode`（反代后所有请求源 IP 都是反代 IP，白名单失去意义）。
+但这意味着一旦有人绕过 CF / nginx **直连容器端口**，就能无限制访问。因此务必：
+
+- Docker 端口映射绑定到本机环回：`-p 127.0.0.1:8000:8000`（而非 `-p 8000:8000`）；
+- 由反代（nginx / CF）作为唯一公网入口；
+- 若使用 Cloudflare，可配合防火墙仅放行 [CF IP 段](https://www.cloudflare.com/ips/) 访问 443，
+  防止攻击者绕过 CF 直连源站。
 
 #### 2. 缓存规则（强烈推荐）
 

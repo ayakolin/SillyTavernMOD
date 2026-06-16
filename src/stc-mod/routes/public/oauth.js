@@ -5,7 +5,7 @@
 import express from 'express';
 import crypto from 'node:crypto';
 import { getStcConfig } from '../../config.js';
-import { findUserByOAuth, setUserMeta } from '../../user-metadata.js';
+import { findUserByOAuth, setUserMeta, recordLogin } from '../../user-metadata.js';
 import { createUser } from './register-helper.js';
 import * as invitationService from '../../services/invitation-codes.js';
 import { getDefaultLimitMiB, isStorageLimitEnabled } from '../../services/storage-quota.js';
@@ -89,8 +89,8 @@ router.get('/:provider/callback', async (req, res) => {
         const existingHandle = findUserByOAuth(providerStr, String(userInfo.id));
 
         if (existingHandle) {
-            // Login existing user
-            setUserMeta(existingHandle, { lastLoginAt: Date.now() });
+            // Login existing user (records lastLoginAt + lastActiveAt atomically)
+            recordLogin(existingHandle);
             if (req.session) {
                 req.session.handle = existingHandle;
             }
@@ -131,6 +131,7 @@ router.get('/:provider/callback', async (req, res) => {
             expiresAt: 0,
             createdAt: Date.now(),
             lastLoginAt: Date.now(),
+            lastActiveAt: Date.now(),
             storageLimitMiB: isStorageLimitEnabled() ? getDefaultLimitMiB() : undefined,
             hasPassword: false,
             registrationMethod: providerStr,
@@ -204,6 +205,7 @@ router.post('/complete-registration', async (req, res) => {
             expiresAt,
             createdAt: Date.now(),
             lastLoginAt: Date.now(),
+            lastActiveAt: Date.now(),
             storageLimitMiB: isStorageLimitEnabled() ? getDefaultLimitMiB() : undefined,
             hasPassword: false,
             registrationMethod: providerStr,
