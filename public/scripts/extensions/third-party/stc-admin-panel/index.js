@@ -367,11 +367,24 @@ jQuery(async () => {
         console.debug('[STC-MOD] STC-MOD backend not available:', e.message);
     }
 
-    // Step 4: Heartbeat + periodic expiry check
+    // Step 4: Heartbeat (1 min) + periodic expiry check (5 min)
     if (userExtInfo) {
+        // Send initial heartbeat immediately on page load
+        fetch('/api/stc/users/heartbeat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        }).catch(() => {});
+
+        // Heartbeat every 1 minute to keep lastActiveAt fresh
+        setInterval(() => {
+            fetch('/api/stc/users/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            }).catch(() => {});
+        }, 60 * 1000);
+
+        // Re-check expiry every 5 minutes (for long sessions)
         setInterval(async () => {
-            getCsrfHeaders().then(h => fetch('/api/stc/users/heartbeat', { method: 'POST', headers: h })).catch(() => {});
-            // Re-check expiry every 5 minutes (for long sessions)
             try {
                 const r = await fetch('/api/stc/users/me-ext');
                 if (r.ok) {

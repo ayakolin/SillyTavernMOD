@@ -383,7 +383,7 @@ function renderUserList() {
         <div style="color:#888;font-size:.8em;margin-bottom:8px">显示 ${start + 1}-${Math.min(start + USERS_PER_PAGE, filtered.length)} / ${filtered.length} 用户 · 按最后活跃时间排序</div>
         ${createPagination(currentUserPage, total)}
         ${page.map(u => {
-            const lastActivity = u.lastChatTime || u.lastLoginAt || u.createdAt || 0;
+            const lastActivity = u.lastActiveAt || u.lastLoginAt || u.createdAt || 0;
             const activityText = formatRelativeTime(lastActivity);
             const activityColor = (() => {
                 const days = (Date.now() - lastActivity) / 86400000;
@@ -1420,8 +1420,8 @@ function renderStorageAnalysis(result, sortBy = 'name') {
         allData = [...allData].sort((a, b) => {
             const aM = _userMetaMap[a.handle] || {};
             const bM = _userMetaMap[b.handle] || {};
-            const aTime = aM.lastChatTime || aM.lastLoginAt || aM.createdAt || 0;
-            const bTime = bM.lastChatTime || bM.lastLoginAt || bM.createdAt || 0;
+            const aTime = aM.lastActiveAt || aM.lastLoginAt || aM.createdAt || 0;
+            const bTime = bM.lastActiveAt || bM.lastLoginAt || bM.createdAt || 0;
             return bTime - aTime; // Most recent first
         });
 
@@ -1469,7 +1469,7 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
 
         // Get activity time from metadata
         const meta = _userMetaMap[u.handle] || {};
-        const lastActivity = meta.lastChatTime || meta.lastLoginAt || meta.createdAt || 0;
+        const lastActivity = meta.lastActiveAt || meta.lastLoginAt || meta.createdAt || 0;
         const activityText = formatRelativeTime(lastActivity);
         const activityColor = (() => {
             const days = (Date.now() - lastActivity) / 86400000;

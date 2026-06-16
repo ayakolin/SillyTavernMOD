@@ -47,13 +47,47 @@ function loadMetadata() {
             if (fs.existsSync(backup)) {
                 metadataCache = JSON.parse(fs.readFileSync(backup, 'utf8'));
                 console.warn('[STC-MOD] Recovered user metadata from backup.');
+                migrateLastActiveAt();
                 return metadataCache;
             }
         } catch { /* fall through */ }
         metadataCache = {};
     }
+    migrateLastActiveAt();
     return metadataCache;
 }
+
+/**
+ * One-time migration: backfill `lastActiveAt` for users who have
+ * `lastLoginAt` or `createdAt` but no `lastActiveAt`.
+ * This covers all users created before the heartbeat feature was added.
+ * Uses a sentinel key to ensure it only runs once.
+ */
+function migrateLastActiveAt() {
+    if (!metadataCache || metadataCache._migrated_lastActiveAt) return;
+    let migrated = 0;
+    for (const [handle, data] of Object.entries(metadataCache)) {
+        if (handle.startsWith('_')) continue; // skip sentinel keys
+        if (!data || typeof data !== 'object') continue;
+        if (!data.lastActiveAt && (data.lastLoginAt || data.createdAt)) {
+            data.lastActiveAt = data.lastLoginAt || data.createdAt;
+            migrated++;
+        }
+    }
+    if (migrated > 0) {
+        metadataCache._migrated_lastActiveAt = Date.now();
+        dirty = true;
+        // Flush immediately so the migration is durable
+        flushSync();
+        console.log(`[STC-MOD] Migration: backfilled lastActiveAt for ${migrated} users.`);
+    } else {
+        // Mark as done even if nothing to migrate
+        metadataCache._migrated_lastActiveAt = Date.now();
+        dirty = true;
+        flushSync();
+    }
+}
+
 
 /**
  * Atomically persist the current cache to disk.
@@ -175,7 +209,12 @@ export function deleteUserMeta(handle) {
  * @returns {Object<string, UserExtendedData>}
  */
 export function getAllUserMeta() {
-    return { ...(loadMetadata() || {}) };
+    const raw = loadMetadata() || {};
+    const result = {};
+    for (const [key, val] of Object.entries(raw)) {
+        if (!key.startsWith('_')) result[key] = val;
+    }
+    return result;
 }
 
 /**
@@ -281,6 +320,7 @@ export function getUserStats(opts = {}) {
 
     let total = 0, active = 0, expired = 0, newToday = 0;
     for (const [handle, data] of Object.entries(meta)) {
+        if (handle.startsWith('_')) continue; // skip internal sentinel keys
         total++;
         const lastActive = resolveActivityTime(data);
         if (lastActive && now - lastActive <= activeThreshold) active++;
