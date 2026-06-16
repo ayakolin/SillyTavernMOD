@@ -239,24 +239,14 @@ export function recordLogin(handle) {
 /**
  * Record a lightweight activity ping (e.g. heartbeat).
  * Updates only lastActiveAt and uses the debounced flush, so frequent pings do
- * not hammer the disk. Skips redundant updates within the debounce window.
+ * not hammer the disk.
  * @param {string} handle
  */
 export function recordActivity(handle) {
-    const cache = loadMetadata();
-    if (!cache) return; // Defensive: should never happen
-    const meta = cache[handle] || {};
     const now = Date.now();
-    
-    // Avoid scheduling a write for near-duplicate pings within the debounce window.
-    if (meta.lastActiveAt && now - meta.lastActiveAt < FLUSH_DEBOUNCE_MS) {
-        // Update in-memory value for immediate reads, and ensure a flush is scheduled.
-        cache[handle] = { ...meta, lastActiveAt: now };
-        scheduleFlush(false); // Guarantees a timer exists to persist this change
-        return;
-    }
-    
-    // Outside debounce window: treat as a fresh activity update.
+    // Use setUserMeta for all updates to ensure consistency.
+    // The internal scheduleFlush(false) will automatically coalesce writes
+    // within the debounce window, so high-frequency heartbeats are batched.
     setUserMeta(handle, { lastActiveAt: now });
 }
 
