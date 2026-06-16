@@ -20,6 +20,7 @@ import { configureTrustProxy as applyTrustProxy } from './middleware/trust-proxy
 import { shouldSkipCsrf as csrfCheck } from './middleware/csrf-exemption.js';
 import { expirationCheckMiddleware } from './middleware/expiration-check.js';
 import { registerStorageEnforceMiddleware } from './middleware/storage-enforce.js';
+import { injectHeartbeatScript } from './middleware/script-injection.js';
 import { isUserExpired } from './user-metadata.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -94,6 +95,9 @@ export async function setupPublicRoutes(app) {
 
     // Serve STC-MOD static assets
     app.use('/stc-assets', express.static(publicDir, { maxAge: '1d' }));
+
+    // Inject heartbeat script for logged-in users
+    app.use(injectHeartbeatScript);
 
     // Storage quota enforcement – intercepts write operations before official handlers
     registerStorageEnforceMiddleware(app);
