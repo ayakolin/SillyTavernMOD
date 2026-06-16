@@ -1364,6 +1364,7 @@ async function loadStorageAnalysis(page, sortBy = 'name') {
             _userMetaMap = {};
             users.forEach(u => {
                 _userMetaMap[u.handle] = {
+                    lastActiveAt: u.lastActiveAt,
                     lastChatTime: u.lastChatTime,
                     lastLoginAt: u.lastLoginAt,
                     createdAt: u.createdAt
