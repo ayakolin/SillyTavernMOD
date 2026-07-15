@@ -58,3 +58,24 @@ describe('warm-latte theme (暖阳拿铁)', () => {
         }
     });
 });
+
+describe('warm-cocoa theme (暖夜可可)', () => {
+    const t = readJson('default/content/themes/warm-cocoa.json');
+
+    test('is valid JSON with all 34 required keys', () => {
+        for (const k of REQUIRED_THEME_KEYS) expect(t).toHaveProperty(k);
+    });
+    test('name is 暖夜可可', () => {
+        expect(t.name).toBe('暖夜可可');
+    });
+    test('main text on blur tint meets WCAG AA (>=4.5)', () => {
+        expect(contrastRatio(t.main_text_color, t.blur_tint_color)).toBeGreaterThanOrEqual(4.5);
+    });
+    test('reuses the same --stc- token names as latte', () => {
+        for (const v of ['--stc-bg', '--stc-surface', '--stc-surface-2', '--stc-text',
+            '--stc-text-muted', '--stc-accent', '--stc-accent-hover', '--stc-accent-soft',
+            '--stc-border', '--stc-radius', '--stc-radius-sm', '--stc-radius-lg']) {
+            expect(t.custom_css).toContain(v);
+        }
+    });
+});
