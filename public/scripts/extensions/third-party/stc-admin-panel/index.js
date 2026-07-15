@@ -131,7 +131,7 @@ function showStorageQuotaToast(data) {
         background:#1e1e2e;border:1px solid rgba(231,76,60,.5);
         border-left:4px solid #e74c3c;border-radius:10px;
         padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.5);
-        color:#eee;font-size:.88em;font-family:inherit;
+        color:var(--stc-text, #eee);font-size:.88em;font-family:inherit;
         display:flex;flex-direction:column;gap:8px;
         animation:stcSlideUp .25s ease;
     `;
@@ -140,7 +140,7 @@ function showStorageQuotaToast(data) {
             <i class="fa-solid fa-triangle-exclamation"></i>
             存储空间已满，写入操作已被阻止
             <button onclick="document.getElementById('stc-quota-toast').remove()"
-                style="margin-left:auto;background:none;border:none;color:#aaa;cursor:pointer;font-size:1.1em;line-height:1">
+                style="margin-left:auto;background:none;border:none;color:var(--stc-text-muted, #aaa);cursor:pointer;font-size:1.1em;line-height:1">
                 <i class="fa-solid fa-xmark"></i></button>
         </div>
         <div style="font-size:.85em;color:#ccc">
@@ -150,11 +150,11 @@ function showStorageQuotaToast(data) {
         <div style="background:rgba(255,255,255,.1);border-radius:4px;height:6px;overflow:hidden">
             <div style="background:#e74c3c;height:100%;width:${barW}%;border-radius:4px"></div>
         </div>
-        <div style="font-size:.8em;color:#aaa;display:flex;align-items:center;gap:6px">
+        <div style="font-size:.8em;color:var(--stc-text-muted, #aaa);display:flex;align-items:center;gap:6px">
             <i class="fa-solid fa-lightbulb" style="color:#f39c12"></i>
             提示：删除不需要的聊天记录或角色卡以释放空间，或联系管理员扩容。
             <a href="#" onclick="document.getElementById('stc-quota-toast').remove();showUserPanel();return false;"
-               style="color:#8ab4f8;white-space:nowrap">查看详情</a>
+               style="color:var(--stc-accent, #8ab4f8);white-space:nowrap">查看详情</a>
         </div>`;
 
     document.documentElement.appendChild(toast);
@@ -203,7 +203,7 @@ function showExpiryWarningToast(info) {
         background:#1e1e2e;border:1px solid ${borderColor}55;
         border-left:4px solid ${borderColor};border-radius:10px;
         padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.5);
-        color:#eee;font-size:.88em;font-family:inherit;
+        color:var(--stc-text, #eee);font-size:.88em;font-family:inherit;
         display:flex;flex-direction:column;gap:10px;
         animation:stcSlideUp .25s ease;
     `;
@@ -212,7 +212,7 @@ function showExpiryWarningToast(info) {
             <i class="fa-solid fa-clock" style="color:${iconColor}"></i>
             ${title}
             <button onclick="document.getElementById('stc-expiry-toast').remove()"
-                style="margin-left:auto;background:none;border:none;color:#aaa;cursor:pointer;font-size:1.1em;line-height:1">
+                style="margin-left:auto;background:none;border:none;color:var(--stc-text-muted, #aaa);cursor:pointer;font-size:1.1em;line-height:1">
                 <i class="fa-solid fa-xmark"></i></button>
         </div>
         <div style="font-size:.85em;color:#ccc;line-height:1.6">${body}</div>
@@ -278,9 +278,9 @@ async function showPasswordReminderPopup(info) {
 
         // Main message
         const message = document.createElement('div');
-        message.style.cssText = 'font-size:.92em;line-height:1.65;opacity:.9;padding:12px;background:var(--SmartThemeBotMesBlurTintColor,rgba(255,255,255,.04));border-radius:8px;border-left:3px solid #4a90e2';
+        message.style.cssText = 'font-size:.92em;line-height:1.65;opacity:.9;padding:12px;background:var(--SmartThemeBotMesBlurTintColor,rgba(255,255,255,.04));border-radius:8px;border-left:3px solid var(--stc-accent, #4a90e2)';
         message.innerHTML = `
-            您当前通过 <strong style="color:#8ab4f8">${providerName}</strong> 登录，账户暂未设置密码。<br><br>
+            您当前通过 <strong style="color:var(--stc-accent, #8ab4f8)">${providerName}</strong> 登录，账户暂未设置密码。<br><br>
             <strong>设置密码的好处：</strong><br>
             • 可使用用户名密码登录，无需依赖第三方服务<br>
             • 即使 ${providerName} 服务不可用也能正常登录<br>
@@ -552,7 +552,7 @@ async function showMainAnnouncements() {
 /** Build announcement HTML content for the Popup */
 function buildAnnouncementContent(anns) {
     const ANN_BORDER = {
-        info: '#4a90e2',
+        info: 'var(--stc-accent, #4a90e2)',
         warning: '#f39c12',
         success: '#27ae60',
         error: '#e74c3c',
@@ -630,11 +630,11 @@ function injectUserInfo() {
         const s = userExtInfo.storage;
         const pct = s.percent;
         const isOverQuota = pct >= 100;
-        const barColor = isOverQuota ? '#e74c3c' : pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : '#4a90e2';
+        const barColor = isOverQuota ? '#e74c3c' : pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : 'var(--stc-accent, #4a90e2)';
         html += `<div style="font-size:11px;margin-top:3px;margin-bottom:2px;display:flex;align-items:center;gap:4px">
             ${isOverQuota ? '<i class="fa-solid fa-triangle-exclamation" style="color:#e74c3c;font-size:10px"></i>' : ''}
-            <span style="color:${pct >= 90 ? '#e74c3c' : '#aaa'}">${s.usedMiB}</span>
-            <span style="color:#666"> / </span>
+            <span style="color:${pct >= 90 ? '#e74c3c' : 'var(--stc-text-muted, #aaa)'}">${s.usedMiB}</span>
+            <span style="color:var(--stc-text-muted, #666)"> / </span>
             <span>${s.limitMiB} MiB</span>
             ${isOverQuota ? '<span style="color:#e74c3c;font-size:9px;font-weight:600">超限</span>' : ''}
         </div>`;
@@ -980,7 +980,7 @@ function buildUserPanelContent(purchaseLink = '') {
     if (me.storage?.enabled) {
         const s = me.storage;
         const pct = s.percent;
-        const barColor = pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : '#4a90e2';
+        const barColor = pct >= 90 ? '#e74c3c' : pct >= 70 ? '#f39c12' : 'var(--stc-accent, #4a90e2)';
         const today = new Date().toISOString().split('T')[0];
         const alreadyCheckedIn = s.lastCheckInDate === today;
 
@@ -1303,7 +1303,7 @@ async function wireVaultCard(content, showMsg, parentPopup) {
             } else if (status.unlocked) {
                 setBadge('<i class="fa-solid fa-lock-open"></i> 已解锁', '#2ecc71', 'rgba(46,204,113,.12)', 'rgba(46,204,113,.3)');
             } else {
-                setBadge('<i class="fa-solid fa-lock"></i> 已锁定', '#4a90e2', 'rgba(74,144,226,.12)', 'rgba(74,144,226,.3)');
+                setBadge('<i class="fa-solid fa-lock"></i> 已锁定', 'var(--stc-accent, #4a90e2)', 'rgba(74,144,226,.12)', 'rgba(74,144,226,.3)');
             }
 
             renderActions(status);
@@ -1539,7 +1539,7 @@ async function wirePasswordCard(content, showMsg, parentPopup) {
                     userExtInfo.passwordSetAt = Date.now();
                 }
 
-                showMsg(`密码设置成功！<br><br>您的登录凭据：<br>• 用户名：<span style="color:#4a90e2;font-weight:700;font-size:1.05em">${esc(userExtInfo?.handle || '')}</span><br>• 密码：您刚才设置的密码<br><br>下次可使用用户名密码登录，无需依赖第三方服务。`);
+                showMsg(`密码设置成功！<br><br>您的登录凭据：<br>• 用户名：<span style="color:var(--stc-accent, #4a90e2);font-weight:700;font-size:1.05em">${esc(userExtInfo?.handle || '')}</span><br>• 密码：您刚才设置的密码<br><br>下次可使用用户名密码登录，无需依赖第三方服务。`);
 
                 // Auto-refresh page after 2 seconds to re-establish session
                 setTimeout(() => {
@@ -2011,7 +2011,7 @@ async function openAdminPanel() {
         overlay.innerHTML = `<div style="background:var(--stc-surface, #16213e);border-radius:12px;padding:30px;color:var(--stc-text, #eee);max-width:400px;text-align:center">
             <i class="fa-solid fa-triangle-exclamation" style="color:#e74c3c;font-size:2em;margin-bottom:12px;display:block"></i>
             <h3 style="margin:0 0 10px">管理面板加载失败</h3>
-            <p style="color:#888;font-size:.9em">${e.message}</p>
+            <p style="color:var(--stc-text-muted, #888);font-size:.9em">${e.message}</p>
             <button onclick="document.getElementById('stc-admin-modal').remove()" class="menu_button" style="margin-top:16px;padding:8px 20px">关闭</button>
         </div>`;
         overlay.addEventListener('click', ev => { if (ev.target === overlay) overlay.remove(); });

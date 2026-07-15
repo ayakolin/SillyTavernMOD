@@ -134,7 +134,7 @@ function setBtn(id, loading, origHtml) {
 }
 
 function emptyState(icon, title, desc) {
-    return `<div style="text-align:center;padding:40px;color:#888">
+    return `<div style="text-align:center;padding:40px;color:var(--stc-text-muted, #888)">
         <i class="fa-solid ${icon}" style="font-size:2em;margin-bottom:10px;display:block"></i>
         <h4 style="margin:0 0 5px">${esc(title)}</h4>
         <p style="margin:0;font-size:0.85em">${esc(desc)}</p></div>`;
@@ -170,13 +170,13 @@ export function buildAdminPanelHTML() {
   <div style="position:relative;z-index:1;background:var(--stc-surface, #16213e);border-radius:12px;width:100%;max-width:960px;min-height:500px;box-shadow:0 8px 32px rgba(0,0,0,.5);color:var(--stc-text, #eee);font-family:sans-serif">
 
     <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #2a3a5e">
-      <h2 style="margin:0;font-size:1.3em"><i class="fa-solid fa-screwdriver-wrench" style="color:#6c63ff;margin-right:8px"></i>STC 管理面板</h2>
-      <button id="stc-admin-close" style="background:none;border:none;color:#888;font-size:1.4em;cursor:pointer;padding:4px 8px">✕</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--stc-surface-2, #2a3a5e)">
+      <h2 style="margin:0;font-size:1.3em"><i class="fa-solid fa-screwdriver-wrench" style="color:var(--stc-accent, #6c63ff);margin-right:8px"></i>STC 管理面板</h2>
+      <button id="stc-admin-close" style="background:none;border:none;color:var(--stc-text-muted, #888);font-size:1.4em;cursor:pointer;padding:4px 8px">✕</button>
     </div>
 
     <!-- Tabs -->
-    <div id="stc-tabs" style="display:flex;gap:4px;padding:12px 24px 0;flex-wrap:wrap;border-bottom:1px solid #2a3a5e">
+    <div id="stc-tabs" style="display:flex;gap:4px;padding:12px 24px 0;flex-wrap:wrap;border-bottom:1px solid var(--stc-surface-2, #2a3a5e)">
       ${[
         ['system', 'fa-chart-line', '系统监控'],
         ['invitation', 'fa-ticket', '邀请码'],
@@ -188,14 +188,14 @@ export function buildAdminPanelHTML() {
         ['users', 'fa-users-gear', '用户管理'],
         ['tasks', 'fa-clock', '定时任务'],
       ].map(([id, icon, label]) =>
-        `<button class="stc-tab-btn" data-tab="${id}" style="padding:8px 14px;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-size:0.85em;background:rgba(255,255,255,.04);color:#aaa;transition:all .2s">
+        `<button class="stc-tab-btn" data-tab="${id}" style="padding:8px 14px;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-size:0.85em;background:rgba(255,255,255,.04);color:var(--stc-text-muted, #aaa);transition:all .2s">
           <i class="fa-solid ${icon}" style="margin-right:5px"></i>${label}</button>`
       ).join('')}
     </div>
 
     <!-- Content -->
     <div id="stc-tab-content" style="padding:24px;min-height:400px">
-      <div style="text-align:center;padding:60px;color:#666">点击上方标签加载内容</div>
+      <div style="text-align:center;padding:60px;color:var(--stc-text-muted, #666)">点击上方标签加载内容</div>
     </div>
 
   </div>
@@ -224,12 +224,12 @@ export async function initAdminPanel() {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.stc-tab-btn').forEach(b => {
                 b.style.background = 'rgba(255,255,255,.04)';
-                b.style.color = '#aaa';
+                b.style.color = 'var(--stc-text-muted, #aaa)';
                 b.style.borderBottom = 'none';
             });
             btn.style.background = 'var(--stc-surface, #16213e)';
             btn.style.color = '#fff';
-            btn.style.borderBottom = '2px solid #6c63ff';
+            btn.style.borderBottom = '2px solid var(--stc-accent, #6c63ff)';
             clearInterval(systemLoadInterval);
             systemLoadInterval = null;
             switchTab(btn.dataset.tab);
@@ -243,7 +243,7 @@ export async function initAdminPanel() {
 async function switchTab(tab) {
     const content = document.getElementById('stc-tab-content');
     if (!content) return;
-    content.innerHTML = `<div style="text-align:center;padding:60px;color:#888"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>加载中...</div>`;
+    content.innerHTML = `<div style="text-align:center;padding:60px;color:var(--stc-text-muted, #888)"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>加载中...</div>`;
 
     switch (tab) {
         case 'system': await renderSystemTab(content); break;
@@ -265,20 +265,20 @@ async function renderSystemTab(container) {
     container.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px" id="stc-sys-cards">
         ${['cpu','memory','users','uptime'].map(k => `<div id="stc-sys-${k}" style="background:rgba(255,255,255,.05);border-radius:10px;padding:18px;text-align:center">
-            <div style="color:#888;font-size:.8em;margin-bottom:6px">${{cpu:'CPU 使用率',memory:'内存使用',users:'活跃用户',uptime:'运行时间'}[k]}</div>
-            <div id="stc-sv-${k}" style="font-size:2em;font-weight:700;color:#6c63ff">—</div>
-            <div id="stc-ss-${k}" style="color:#888;font-size:.75em;margin-top:4px"></div>
-            <div id="stc-pb-${k}" style="background:#333;border-radius:3px;height:6px;margin-top:8px"><div id="stc-pp-${k}" style="height:100%;border-radius:3px;width:0;background:linear-gradient(90deg,#667eea,#764ba2);transition:width .5s"></div></div>
+            <div style="color:var(--stc-text-muted, #888);font-size:.8em;margin-bottom:6px">${{cpu:'CPU 使用率',memory:'内存使用',users:'活跃用户',uptime:'运行时间'}[k]}</div>
+            <div id="stc-sv-${k}" style="font-size:2em;font-weight:700;color:var(--stc-accent, #6c63ff)">—</div>
+            <div id="stc-ss-${k}" style="color:var(--stc-text-muted, #888);font-size:.75em;margin-top:4px"></div>
+            <div id="stc-pb-${k}" style="background:#333;border-radius:3px;height:6px;margin-top:8px"><div id="stc-pp-${k}" style="height:100%;border-radius:3px;width:0;background:linear-gradient(90deg,var(--stc-accent, #667eea),var(--stc-accent-hover, #764ba2));transition:width .5s"></div></div>
         </div>`).join('')}
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap">
         <h3 style="margin:0;flex-shrink:0">用户统计</h3>
         <div style="display:flex;gap:8px;align-items:center">
-          <input id="stc-user-search" type="text" placeholder="搜索用户..." style="padding:6px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em;width:160px">
+          <input id="stc-user-search" type="text" placeholder="搜索用户..." style="padding:6px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.85em;width:160px">
           <button id="stc-sys-refresh" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap;flex-shrink:0;color:#fff"><i class="fa-solid fa-rotate-right"></i> 刷新</button>
         </div>
       </div>
-      <div id="stc-user-list"><div style="text-align:center;padding:30px;color:#888">加载中...</div></div>`;
+      <div id="stc-user-list"><div style="text-align:center;padding:30px;color:var(--stc-text-muted, #888)">加载中...</div></div>`;
 
     document.getElementById('stc-sys-refresh')?.addEventListener('click', loadSystemData);
     document.getElementById('stc-user-search')?.addEventListener('input', (e) => {
@@ -337,7 +337,7 @@ function setCard(key, val, sub, pct, showBar = true) {
     if (b) b.style.display = showBar ? '' : 'none';
     if (p && showBar) {
         p.style.width = `${Math.min(pct, 100)}%`;
-        p.style.background = pct > 80 ? 'linear-gradient(90deg,#e74c3c,#c0392b)' : pct > 60 ? 'linear-gradient(90deg,#f39c12,#e67e22)' : 'linear-gradient(90deg,#667eea,#764ba2)';
+        p.style.background = pct > 80 ? 'linear-gradient(90deg,#e74c3c,#c0392b)' : pct > 60 ? 'linear-gradient(90deg,#f39c12,#e67e22)' : 'linear-gradient(90deg,var(--stc-accent, #667eea),var(--stc-accent-hover, #764ba2))';
     }
 }
 
@@ -380,7 +380,7 @@ function renderUserList() {
     };
 
     container.innerHTML = `
-        <div style="color:#888;font-size:.8em;margin-bottom:8px">显示 ${start + 1}-${Math.min(start + USERS_PER_PAGE, filtered.length)} / ${filtered.length} 用户 · 按最后活跃时间排序</div>
+        <div style="color:var(--stc-text-muted, #888);font-size:.8em;margin-bottom:8px">显示 ${start + 1}-${Math.min(start + USERS_PER_PAGE, filtered.length)} / ${filtered.length} 用户 · 按最后活跃时间排序</div>
         ${createPagination(currentUserPage, total)}
         ${page.map(u => {
             const lastActivity = u.lastActiveAt || u.lastLoginAt || u.createdAt || 0;
@@ -400,10 +400,10 @@ function renderUserList() {
                     <span style="font-weight:600">${esc(u.handle)}</span>
                     ${u.expired ? '<span style="color:#e74c3c;font-size:.75em;padding:2px 6px;background:rgba(231,76,60,.2);border-radius:4px">已过期</span>' : '<span style="color:#27ae60;font-size:.75em;padding:2px 6px;background:rgba(39,174,96,.2);border-radius:4px">正常</span>'}
                 </div>
-                <div style="font-size:.75em;color:#888;line-height:1.6">
+                <div style="font-size:.75em;color:var(--stc-text-muted, #888);line-height:1.6">
                     <div style="display:flex;flex-wrap:wrap;gap:8px">
                         <span style="color:${activityColor}"><i class="fa-solid fa-clock"></i> 最后活跃: ${activityText}</span>
-                        ${u.lastChatTime ? `<span style="color:#8ab4f8"><i class="fa-solid fa-message"></i> 最后对话: ${formatRelativeTime(u.lastChatTime)}</span>` : ''}
+                        ${u.lastChatTime ? `<span style="color:var(--stc-accent, #8ab4f8)"><i class="fa-solid fa-message"></i> 最后对话: ${formatRelativeTime(u.lastChatTime)}</span>` : ''}
                         ${u.expiresAt ? `<span><i class="fa-solid fa-calendar"></i> 到期: ${new Date(u.expiresAt).toLocaleDateString('zh-CN')}</span>` : ''}
                     </div>
                     ${u.email ? `<div style="margin-top:2px"><i class="fa-solid fa-envelope"></i> ${esc(u.email)}</div>` : ''}
@@ -431,7 +431,7 @@ async function renderInvitationTab(container) {
         <div style="font-size:.85em;margin-bottom:6px;color:#ffc107"><i class="fa-solid fa-circle-info"></i> 邀请码功能需在 config.yaml 中设置 <code>enableInvitationCodes: true</code></div>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="white-space:nowrap;font-size:.85em">续费购买链接：</span>
-          <input id="stc-purchase-link" type="text" placeholder="https://your-shop.com/buy-code" style="flex:1;padding:7px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em">
+          <input id="stc-purchase-link" type="text" placeholder="https://your-shop.com/buy-code" style="flex:1;padding:7px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.85em">
           <button id="stc-save-purchase-link" class="menu_button" style="padding:7px 14px;white-space:nowrap;font-size:.85em;color:#fff"><i class="fa-solid fa-save"></i> 保存购买链接</button>
         </div>
       </div>
@@ -442,12 +442,12 @@ async function renderInvitationTab(container) {
         <!-- Row: labels above, controls below, all same height -->
         <div style="display:flex;flex-direction:column;gap:6px">
           <div style="display:flex;gap:8px">
-            <span style="font-size:.8em;color:#888;width:140px">有效期类型</span>
-            <span style="font-size:.8em;color:#888;width:96px">创建数量</span>
+            <span style="font-size:.8em;color:var(--stc-text-muted, #888);width:140px">有效期类型</span>
+            <span style="font-size:.8em;color:var(--stc-text-muted, #888);width:96px">创建数量</span>
           </div>
           <div style="display:flex;gap:8px;align-items:stretch">
             <select id="stc-inv-duration"
-              style="width:140px;height:36px;padding:0 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.9em;box-sizing:border-box">
+              style="width:140px;height:36px;padding:0 10px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.9em;box-sizing:border-box">
               <option value="permanent">永久</option>
               <option value="1day">1 天</option>
               <option value="1week">1 周</option>
@@ -457,7 +457,7 @@ async function renderInvitationTab(container) {
               <option value="1year">1 年</option>
             </select>
             <input id="stc-inv-count" type="number" value="1" min="1" max="100"
-              style="width:96px;height:36px;padding:0 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.9em;box-sizing:border-box">
+              style="width:96px;height:36px;padding:0 10px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.9em;box-sizing:border-box">
             <button id="stc-create-single-inv" class="menu_button"
               style="flex:1;height:36px;padding:0 16px;font-size:.88em;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;color:#fff">
               <i class="fa-solid fa-plus"></i> 单个创建</button>
@@ -471,9 +471,9 @@ async function renderInvitationTab(container) {
       <!-- Filters & list -->
       <div style="display:flex;gap:8px;margin-bottom:12px;align-items:stretch">
         <input id="stc-code-search" type="text" placeholder="搜索邀请码..."
-          style="flex:1;min-width:100px;height:36px;padding:0 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em;box-sizing:border-box">
+          style="flex:1;min-width:100px;height:36px;padding:0 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.85em;box-sizing:border-box">
         <select id="stc-code-type-filter"
-          style="height:36px;padding:0 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em;white-space:nowrap;box-sizing:border-box">
+          style="height:36px;padding:0 10px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.85em;white-space:nowrap;box-sizing:border-box">
           <option value="all">类型: 全部</option>
           <option value="permanent">永久</option>
           <option value="1day">1 天</option>
@@ -484,7 +484,7 @@ async function renderInvitationTab(container) {
           <option value="1year">1 年</option>
         </select>
         <select id="stc-code-status-filter"
-          style="height:36px;padding:0 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em;white-space:nowrap;box-sizing:border-box">
+          style="height:36px;padding:0 10px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.85em;white-space:nowrap;box-sizing:border-box">
           <option value="all">状态: 全部</option>
           <option value="unused">未使用</option>
           <option value="used">已使用</option>
@@ -533,7 +533,7 @@ async function loadInvitationCodes() {
         console.error('[STC] stc-inv-list element not found');
         return;
     }
-    listEl.innerHTML = `<div style="text-align:center;padding:20px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>`;
+    listEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--stc-text-muted, #888)"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>`;
     try {
         const r = await fetch('/api/stc/invitation-codes/list', { headers: getHeaders() });
         if (!r.ok) throw new Error(await r.text());
@@ -569,10 +569,10 @@ function renderInvitationCodes() {
     const page = codes.slice(start, start + CODES_PER_PAGE);
 
     container.innerHTML = `
-        <div style="color:#888;font-size:.8em;margin-bottom:8px">显示 ${start + 1}-${Math.min(start + CODES_PER_PAGE, codes.length)} / ${codes.length} 个邀请码</div>
+        <div style="color:var(--stc-text-muted, #888);font-size:.8em;margin-bottom:8px">显示 ${start + 1}-${Math.min(start + CODES_PER_PAGE, codes.length)} / ${codes.length} 个邀请码</div>
         ${createPagination(currentCodePage, total)}
         <table style="width:100%;border-collapse:collapse;font-size:.85em">
-          <thead><tr style="color:#888;border-bottom:1px solid #2a3a5e">
+          <thead><tr style="color:var(--stc-text-muted, #888);border-bottom:1px solid var(--stc-surface-2, #2a3a5e)">
             <th style="padding:8px 6px;text-align:left">邀请码</th>
             <th style="padding:8px 6px;text-align:left">有效期</th>
             <th style="padding:8px 6px;text-align:left">状态</th>
@@ -647,12 +647,12 @@ async function renderAnnouncementsTab(container) {
       <!-- Create form -->
       <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:16px;margin-bottom:16px" id="stc-ann-create-form">
         <h4 style="margin:0 0 12px" id="stc-ann-form-title">创建新公告</h4>
-        <input id="stc-ann-title" type="text" placeholder="标题：" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;margin-bottom:8px">
-        <textarea id="stc-ann-content" placeholder="内容：" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;min-height:80px;resize:vertical;margin-bottom:8px"></textarea>
+        <input id="stc-ann-title" type="text" placeholder="标题：" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);margin-bottom:8px">
+        <textarea id="stc-ann-content" placeholder="内容：" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);min-height:80px;resize:vertical;margin-bottom:8px"></textarea>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
           <div id="stc-ann-type-wrap" style="display:none">
-            <label style="font-size:.85em;color:#aaa">类型：</label>
-            <select id="stc-ann-type" style="padding:6px 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee">
+            <label style="font-size:.85em;color:var(--stc-text-muted, #aaa)">类型：</label>
+            <select id="stc-ann-type" style="padding:6px 10px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee)">
               <option value="info">信息</option>
               <option value="warning">警告</option>
               <option value="success">成功</option>
@@ -678,7 +678,7 @@ async function renderAnnouncementsTab(container) {
         annType = type;
         ['main', 'login'].forEach(t => {
             const btn = document.getElementById(`stc-ann-tab-${t}`);
-            if (btn) btn.style.background = t === type ? '#6c63ff' : 'rgba(255,255,255,.06)';
+            if (btn) btn.style.background = t === type ? 'var(--stc-accent, #6c63ff)' : 'rgba(255,255,255,.06)';
         });
         const typeWrap = document.getElementById('stc-ann-type-wrap');
         if (typeWrap) typeWrap.style.display = type === 'login' ? '' : 'none';
@@ -696,7 +696,7 @@ async function renderAnnouncementsTab(container) {
 async function loadAnnouncementsOf(type) {
     const container = document.getElementById('stc-ann-list');
     if (!container) return;
-    container.innerHTML = `<div style="text-align:center;padding:20px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--stc-text-muted, #888)"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>`;
     try {
         const r = await fetch(`/api/stc/announcements/list?type=${type}`, { headers: getHeaders() });
         if (!r.ok) throw new Error(await r.text());
@@ -709,26 +709,26 @@ async function loadAnnouncementsOf(type) {
     }
 }
 
-const ANN_TYPE_COLORS = { info: '#4a90e2', warning: '#f39c12', success: '#27ae60', error: '#e74c3c' };
+const ANN_TYPE_COLORS = { info: 'var(--stc-accent, #4a90e2)', warning: '#f39c12', success: '#27ae60', error: '#e74c3c' };
 
 function renderAnnouncementList(type, anns) {
     const container = document.getElementById('stc-ann-list');
     if (!container) return;
     if (!anns.length) { container.innerHTML = emptyState('fa-bullhorn', '暂无公告', '点击上方创建新公告'); return; }
     container.innerHTML = anns.map(a => `
-        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:14px;margin-bottom:10px;border-left:3px solid ${ANN_TYPE_COLORS[a.type] || '#4a90e2'}">
+        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:14px;margin-bottom:10px;border-left:3px solid ${ANN_TYPE_COLORS[a.type] || 'var(--stc-accent, #4a90e2)'}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
             <div style="flex:1">
               <div style="font-weight:600;margin-bottom:4px">${esc(a.title)}</div>
-              <div style="font-size:.85em;color:#aaa;white-space:pre-wrap">${esc(a.content)}</div>
-              <div style="font-size:.75em;color:#666;margin-top:6px">
+              <div style="font-size:.85em;color:var(--stc-text-muted, #aaa);white-space:pre-wrap">${esc(a.content)}</div>
+              <div style="font-size:.75em;color:var(--stc-text-muted, #666);margin-top:6px">
                 ${a.type ? `<span style="color:${ANN_TYPE_COLORS[a.type]}">■ ${a.type}</span> · ` : ''}
                 ${new Date(a.createdAt).toLocaleString('zh-CN')}
                 ${a.createdBy ? ` · by ${esc(a.createdBy)}` : ''}
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-              <span style="font-size:.75em;padding:3px 8px;border-radius:10px;background:${a.enabled ? 'rgba(39,174,96,.2)' : 'rgba(150,150,150,.2)'};color:${a.enabled ? '#27ae60' : '#888'}">
+              <span style="font-size:.75em;padding:3px 8px;border-radius:10px;background:${a.enabled ? 'rgba(39,174,96,.2)' : 'rgba(150,150,150,.2)'};color:${a.enabled ? '#27ae60' : 'var(--stc-text-muted, #888)'}">
                 ${a.enabled ? '已启用' : '已禁用'}</span>
               <div style="display:flex;gap:6px">
                 <button class="stc-ann-toggle menu_button" data-id="${a.id}" data-type="${type}" style="padding:5px 14px;font-size:.82em;white-space:nowrap">
@@ -808,13 +808,13 @@ async function renderEmailTab(container) {
         <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
           <button id="stc-email-save" class="menu_button" style="padding:8px 24px;background:#27ae60;white-space:nowrap;flex-shrink:0;color:#fff"><i class="fa-solid fa-save"></i> 保存</button>
           <div style="display:flex;gap:6px;flex:1;align-items:center">
-            <input id="stc-email-test-addr" type="email" placeholder="发送测试邮件到..." style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em">
+            <input id="stc-email-test-addr" type="email" placeholder="发送测试邮件到..." style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.85em">
             <button id="stc-email-test" class="menu_button" style="padding:8px 16px;white-space:nowrap;color:#fff"><i class="fa-solid fa-paper-plane"></i> 发送测试邮件</button>
           </div>
         </div>
 
-        <div style="margin-top:16px;background:rgba(255,255,255,.04);border-radius:8px;padding:14px;font-size:.8em;color:#888;line-height:1.8">
-          <strong style="color:#aaa">配置说明:</strong><br>
+        <div style="margin-top:16px;background:rgba(255,255,255,.04);border-radius:8px;padding:14px;font-size:.8em;color:var(--stc-text-muted, #888);line-height:1.8">
+          <strong style="color:var(--stc-text-muted, #aaa)">配置说明:</strong><br>
           Gmail: smtp.gmail.com:587，需在 Google 账号开启"应用专用密码"<br>
           QQ邮箱: smtp.qq.com:587 或 465（启用SSL），需获取授权码<br>
           腾讯企业邮箱: smtp.exmail.qq.com:465（必须启用SSL），使用邮箱密码<br>
@@ -825,8 +825,8 @@ async function renderEmailTab(container) {
       </div>
       <style>
         .stc-form-row { display:flex;align-items:center;gap:10px;margin-bottom:12px }
-        .stc-form-row label { width:120px;font-size:.85em;color:#aaa;flex-shrink:0 }
-        .stc-form-row input { flex:1;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.9em }
+        .stc-form-row label { width:120px;font-size:.85em;color:var(--stc-text-muted, #aaa);flex-shrink:0 }
+        .stc-form-row input { flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.9em }
       </style>`;
 
     // Load existing config
@@ -908,11 +908,11 @@ async function renderOAuthTab(container) {
         <div class="stc-form-row"><label>Callback URL:</label>
           <input class="stc-oauth-callback" data-provider="${id}" type="text" value="${esc(oauthConfig[id]?.callbackUrl || '')}" placeholder="留空则自动生成"></div>
         ${extra}
-        <div style="background:rgba(255,255,255,.02);border-left:3px solid #4a90e2;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:.78em;color:#aaa">
-          <div style="color:#4a90e2;font-weight:600;margin-bottom:4px"><i class="fa-solid fa-circle-info"></i> 回调地址配置说明</div>
+        <div style="background:rgba(255,255,255,.02);border-left:3px solid var(--stc-accent, #4a90e2);padding:10px 12px;margin:10px 0;border-radius:4px;font-size:.78em;color:var(--stc-text-muted, #aaa)">
+          <div style="color:var(--stc-accent, #4a90e2);font-weight:600;margin-bottom:4px"><i class="fa-solid fa-circle-info"></i> 回调地址配置说明</div>
           <div style="line-height:1.6">
             在 ${label} 开发者平台创建应用时，需要填写回调地址（Redirect URI / Callback URL）：<br>
-            <code class="stc-callback-url" style="background:rgba(0,0,0,.3);padding:4px 8px;border-radius:3px;color:#8ab4f8;font-size:.9em;display:block;margin:6px 0;word-break:break-all;overflow-wrap:break-word">${callbackExample}</code>
+            <code class="stc-callback-url" style="background:rgba(0,0,0,.3);padding:4px 8px;border-radius:3px;color:var(--stc-accent, #8ab4f8);font-size:.9em;display:block;margin:6px 0;word-break:break-all;overflow-wrap:break-word">${callbackExample}</code>
             <button class="stc-copy-callback menu_button" data-url="${callbackExample}" style="padding:6px 12px;font-size:.85em;margin-top:4px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;color:#fff">
               <i class="fa-solid fa-copy"></i> <span>复制回调地址</span>
             </button>
@@ -938,8 +938,8 @@ async function renderOAuthTab(container) {
       )}
       <style>
         .stc-form-row { display:flex;align-items:center;gap:10px;margin-bottom:10px }
-        .stc-form-row label { width:120px;font-size:.85em;color:#aaa;flex-shrink:0 }
-        .stc-form-row input { flex:1;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.9em }
+        .stc-form-row label { width:120px;font-size:.85em;color:var(--stc-text-muted, #aaa);flex-shrink:0 }
+        .stc-form-row input { flex:1;padding:8px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.9em }
 
         /* Mobile responsive styles */
         @media (max-width: 600px) {
@@ -996,8 +996,8 @@ async function renderTemplateTab(container) {
         <h4 style="margin:0 0 12px">从现有用户生成模板</h4>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <div style="flex:1;min-width:200px">
-            <div style="font-size:.8em;color:#888;margin-bottom:4px">来源用户:</div>
-            <select id="stc-tpl-user" style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee">
+            <div style="font-size:.8em;color:var(--stc-text-muted, #888);margin-bottom:4px">来源用户:</div>
+            <select id="stc-tpl-user" style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee)">
               <option value="">加载中...</option></select>
           </div>
         </div>
@@ -1013,7 +1013,7 @@ async function renderTemplateTab(container) {
           ].map(([k, label, group, checked]) => `
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px;border-radius:4px;background:rgba(255,255,255,.03)">
               <input type="checkbox" id="stc-tpl-${k}" ${checked ? 'checked' : ''}> ${label}
-              <span style="font-size:.75em;color:#666">(${group})</span>
+              <span style="font-size:.75em;color:var(--stc-text-muted, #666)">(${group})</span>
             </label>`).join('')}
         </div>
         <div style="text-align:center;margin-top:14px">
@@ -1021,7 +1021,7 @@ async function renderTemplateTab(container) {
             <i class="fa-solid fa-save"></i> 保存为默认配置
           </button>
         </div>
-        <div style="font-size:.75em;color:#888;margin-top:8px;text-align:center">默认模板保存在 data/stc-mod/default-template，新用户注册时会自动应用。</div>
+        <div style="font-size:.75em;color:var(--stc-text-muted, #888);margin-top:8px;text-align:center">默认模板保存在 data/stc-mod/default-template，新用户注册时会自动应用。</div>
       </div>
 
       <div style="text-align:center">
@@ -1037,10 +1037,10 @@ async function renderTemplateTab(container) {
         const statusDiv = document.getElementById('stc-tpl-status');
         if (d && d.sourceHandle) {
             statusDiv.innerHTML = `<div style="color:#27ae60"><i class="fa-solid fa-check-circle"></i> 状态: 已配置</div>
-                <div style="font-size:.85em;color:#aaa;margin-top:6px">来源用户: ${esc(d.sourceHandle)} · 更新时间: ${new Date(d.createdAt).toLocaleString('zh-CN')}</div>
-                <div style="font-size:.85em;color:#aaa">包含内容: ${(d.copiedItems || []).join(', ') || '—'}</div>`;
+                <div style="font-size:.85em;color:var(--stc-text-muted, #aaa);margin-top:6px">来源用户: ${esc(d.sourceHandle)} · 更新时间: ${new Date(d.createdAt).toLocaleString('zh-CN')}</div>
+                <div style="font-size:.85em;color:var(--stc-text-muted, #aaa)">包含内容: ${(d.copiedItems || []).join(', ') || '—'}</div>`;
         } else {
-            statusDiv.innerHTML = `<div style="color:#888"><i class="fa-solid fa-circle-xmark"></i> 状态: 未配置 — 新用户将使用 SillyTavern 默认空白配置</div>`;
+            statusDiv.innerHTML = `<div style="color:var(--stc-text-muted, #888)"><i class="fa-solid fa-circle-xmark"></i> 状态: 未配置 — 新用户将使用 SillyTavern 默认空白配置</div>`;
         }
     } catch {}
 
@@ -1100,33 +1100,33 @@ async function renderStorageTab(container) {
           <label>每日签到奖励 (MiB):</label>
           <input id="stc-stor-checkin" type="number" min="0" value="0" style="width:120px">
         </div>
-        <div style="font-size:.8em;color:#888;margin-bottom:12px">设置为 0 可关闭签到奖励</div>
+        <div style="font-size:.8em;color:var(--stc-text-muted, #888);margin-bottom:12px">设置为 0 可关闭签到奖励</div>
         <div style="display:flex;gap:10px;justify-content:center">
           <button id="stc-stor-reload" class="menu_button" style="padding:8px 20px;font-size:.85em;white-space:nowrap;color:#fff"><i class="fa-solid fa-rotate-right"></i> 加载配置</button>
           <button id="stc-stor-save" class="menu_button" style="padding:8px 20px;background:#27ae60;font-size:.85em;white-space:nowrap;color:#fff"><i class="fa-solid fa-save"></i> 保存</button>
         </div>
-        <div style="font-size:.75em;color:#888;margin-top:8px">保存后建议重启服务以确保配置生效。</div>
+        <div style="font-size:.75em;color:var(--stc-text-muted, #888);margin-top:8px">保存后建议重启服务以确保配置生效。</div>
       </div>
 
       <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:16px;margin-bottom:16px">
         <h4 style="margin:0 0 12px">空间扩容激活码</h4>
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
           <div>
-            <div style="font-size:.8em;color:#888;margin-bottom:4px">生成数量:</div>
-            <input id="stc-stor-code-count" type="number" min="1" max="100" value="1" style="padding:7px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;width:80px">
+            <div style="font-size:.8em;color:var(--stc-text-muted, #888);margin-bottom:4px">生成数量:</div>
+            <input id="stc-stor-code-count" type="number" min="1" max="100" value="1" style="padding:7px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);width:80px">
           </div>
           <div>
-            <div style="font-size:.8em;color:#888;margin-bottom:4px">扩容大小 (MiB):</div>
-            <input id="stc-stor-code-size" type="number" min="1" value="100" style="padding:7px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;width:100px">
+            <div style="font-size:.8em;color:var(--stc-text-muted, #888);margin-bottom:4px">扩容大小 (MiB):</div>
+            <input id="stc-stor-code-size" type="number" min="1" value="100" style="padding:7px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);width:100px">
           </div>
           <button id="stc-stor-gen-codes" class="menu_button" style="padding:8px 20px;font-size:.85em;white-space:nowrap;align-self:flex-end;color:#fff"><i class="fa-solid fa-plus"></i> 生成激活码</button>
         </div>
-        <div id="stc-stor-codes-result" style="margin-top:10px;font-family:monospace;font-size:.85em;color:#aaa;white-space:pre-wrap;background:rgba(0,0,0,.2);border-radius:6px;padding:10px;display:none"></div>
+        <div id="stc-stor-codes-result" style="margin-top:10px;font-family:monospace;font-size:.85em;color:var(--stc-text-muted, #aaa);white-space:pre-wrap;background:rgba(0,0,0,.2);border-radius:6px;padding:10px;display:none"></div>
       </div>
       <style>
         .stc-form-row { display:flex;align-items:center;gap:10px;margin-bottom:12px }
-        .stc-form-row label { width:160px;font-size:.85em;color:#aaa;flex-shrink:0 }
-        .stc-form-row input { padding:8px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee }
+        .stc-form-row label { width:160px;font-size:.85em;color:var(--stc-text-muted, #aaa);flex-shrink:0 }
+        .stc-form-row input { padding:8px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee) }
       </style>`;
 
     // Load config
@@ -1187,11 +1187,11 @@ async function renderUsersTab(container) {
           <i class="fa-solid fa-rotate-right"></i> 刷新分析</button>
       </div>
       <div id="stc-ua-list" style="margin-bottom:28px">
-        <div style="text-align:center;padding:24px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>
+        <div style="text-align:center;padding:24px;color:var(--stc-text-muted, #888)"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>
       </div>
 
       <!-- Section: Delete Inactive Users -->
-      <div style="border-top:1px solid #2a3a5e;padding-top:20px">
+      <div style="border-top:1px solid var(--stc-surface-2, #2a3a5e);padding-top:20px">
         <h3 style="margin:0 0 14px"><i class="fa-solid fa-user-slash" style="color:#e74c3c;margin-right:6px"></i>清理长期未登录用户</h3>
 
         <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:.85em;color:#e88">
@@ -1202,23 +1202,23 @@ async function renderUsersTab(container) {
 
         <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:10px">
           <div>
-            <div style="font-size:.8em;color:#888;margin-bottom:4px">超过多少天未登录视为不活跃:</div>
+            <div style="font-size:.8em;color:var(--stc-text-muted, #888);margin-bottom:4px">超过多少天未登录视为不活跃:</div>
             <div style="display:flex;align-items:center;gap:6px">
               <input id="stc-inactive-days" type="number" value="30" min="1" max="3650"
-                style="padding:7px 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;width:80px">
-              <span style="font-size:.85em;color:#888">天</span>
+                style="padding:7px 10px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);width:80px">
+              <span style="font-size:.85em;color:var(--stc-text-muted, #888)">天</span>
             </div>
           </div>
           <div>
-            <div style="font-size:.8em;color:#888;margin-bottom:4px">且使用空间低于（MB，0 = 不限制）:</div>
+            <div style="font-size:.8em;color:var(--stc-text-muted, #888);margin-bottom:4px">且使用空间低于（MB，0 = 不限制）:</div>
             <div style="display:flex;align-items:center;gap:6px">
               <input id="stc-inactive-min-storage" type="number" value="50" min="0" max="99999"
-                style="padding:7px 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;width:90px">
-              <span style="font-size:.85em;color:#888">MB</span>
+                style="padding:7px 10px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);width:90px">
+              <span style="font-size:.85em;color:var(--stc-text-muted, #888)">MB</span>
             </div>
           </div>
         </div>
-        <div style="font-size:.8em;color:#aaa;margin-bottom:12px;padding:8px 10px;background:rgba(255,255,255,.04);border-radius:6px;border-left:2px solid #4a90e2">
+        <div style="font-size:.8em;color:var(--stc-text-muted, #aaa);margin-bottom:12px;padding:8px 10px;background:rgba(255,255,255,.04);border-radius:6px;border-left:2px solid var(--stc-accent, #4a90e2)">
           <i class="fa-solid fa-circle-info" style="margin-right:4px"></i>
           同时满足以上两个条件才会被列为候选：未登录天数超过阈值 <strong>且</strong> 存储占用低于阈值。
           存储量较大的用户（可能有重要数据）将被自动排除。
@@ -1355,7 +1355,7 @@ async function loadStorageAnalysis(page, sortBy = 'name') {
     if (page !== undefined) currentStoragePage = page;
     const container = document.getElementById('stc-ua-list');
     if (!container) return;
-    container.innerHTML = `<div style="text-align:center;padding:24px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 分析中，请稍候（第 ${currentStoragePage} 页）...</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--stc-text-muted, #888)"><i class="fa-solid fa-spinner fa-spin"></i> 分析中，请稍候（第 ${currentStoragePage} 页）...</div>`;
     try {
         // Load user metadata for activity times
         const metaRes = await fetch('/api/stc/users/expiration-list', { headers: getHeaders() });
@@ -1488,16 +1488,16 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
             <td style="padding:8px 10px;text-align:center;width:36px">
                 <input type="checkbox" class="stc-user-checkbox" data-handle="${esc(u.handle)}"
                     ${isChecked ? 'checked' : ''}
-                    style="width:15px;height:15px;cursor:pointer;accent-color:#6c63ff">
+                    style="width:15px;height:15px;cursor:pointer;accent-color:var(--stc-accent, #6c63ff)">
             </td>
             <td style="padding:8px 10px;font-weight:600">${esc(u.handle)}</td>
             <td style="padding:8px 10px;text-align:right;color:var(--stc-text, #eee);font-weight:600">${u.totalMiB} MiB</td>
-            <td style="padding:8px 10px;text-align:right;color:#aaa">${c.chats || 0}</td>
-            <td style="padding:8px 10px;text-align:right;color:#aaa">${c.characters || 0}</td>
-            <td style="padding:8px 10px;text-align:right;color:${backupMiB > 10 ? '#f39c12' : '#aaa'}"
+            <td style="padding:8px 10px;text-align:right;color:var(--stc-text-muted, #aaa)">${c.chats || 0}</td>
+            <td style="padding:8px 10px;text-align:right;color:var(--stc-text-muted, #aaa)">${c.characters || 0}</td>
+            <td style="padding:8px 10px;text-align:right;color:${backupMiB > 10 ? '#f39c12' : 'var(--stc-text-muted, #aaa)'}"
                 title="${backupMiB > 10 ? '备份文件较多，建议清理' : ''}">${backupMiB}${backupMiB > 10 ? ' ⚠' : ''}</td>
-            <td style="padding:8px 10px;text-align:right;color:#aaa">${c.worlds || 0}</td>
-            <td style="padding:8px 10px;text-align:right;color:#aaa">${c.other || 0}</td>
+            <td style="padding:8px 10px;text-align:right;color:var(--stc-text-muted, #aaa)">${c.worlds || 0}</td>
+            <td style="padding:8px 10px;text-align:right;color:var(--stc-text-muted, #aaa)">${c.other || 0}</td>
             <td style="padding:8px 10px;text-align:center;color:${activityColor};font-size:.85em">${activityText}</td>
             <td style="padding:8px 10px;text-align:center;white-space:nowrap">
                 <button class="stc-user-reset menu_button" data-handle="${esc(u.handle)}"
@@ -1528,25 +1528,25 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
             <input id="stc-storage-search" type="text" placeholder="搜索用户名..."
                 value="${esc(storageSearchTerm)}"
-                style="flex:1;min-width:160px;padding:6px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;font-size:.85em">
+                style="flex:1;min-width:160px;padding:6px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);font-size:.85em">
             <button id="stc-storage-search-btn" class="menu_button" style="padding:6px 16px;font-size:.85em;white-space:nowrap;color:#fff">
                 <i class="fa-solid fa-magnifying-glass"></i> 搜索</button>
             ${storageSearchTerm ? `<button id="stc-storage-clear-btn" class="menu_button" style="padding:6px 14px;font-size:.85em;white-space:nowrap;color:#fff">
                 <i class="fa-solid fa-xmark"></i> 清除</button>` : ''}
             <button id="stc-storage-sort-btn" class="menu_button" data-sort="${sortBy}"
-                style="padding:6px 14px;font-size:.85em;white-space:nowrap;background:${sortBy !== 'name' ? '#4a90e2' : ''};color:#fff">
+                style="padding:6px 14px;font-size:.85em;white-space:nowrap;background:${sortBy !== 'name' ? 'var(--stc-accent, #4a90e2)' : ''};color:#fff">
                 <i class="fa-solid ${sortIcon}"></i> ${sortLabel}</button>
         </div>
         <!-- Batch action bar -->
         <div id="stc-batch-bar" style="display:${selectedCount > 0 ? 'flex' : 'none'};align-items:center;gap:10px;padding:8px 12px;background:var(--stc-accent-soft, rgba(108,99,255,.15));border:1px solid rgba(108,99,255,.4);border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
-            <span style="font-size:.85em;color:#ccc"><i class="fa-solid fa-check-square" style="color:#6c63ff;margin-right:4px"></i>已选 <strong style="color:#fff" id="stc-selected-count">${selectedCount}</strong> 个用户</span>
+            <span style="font-size:.85em;color:#ccc"><i class="fa-solid fa-check-square" style="color:var(--stc-accent, #6c63ff);margin-right:4px"></i>已选 <strong style="color:#fff" id="stc-selected-count">${selectedCount}</strong> 个用户</span>
             <button id="stc-batch-delete-btn" class="menu_button" style="padding:5px 14px;font-size:.82em;background:#c0392b;color:#fff;white-space:nowrap">
                 <i class="fa-solid fa-trash-can"></i> 批量删除</button>
             <button id="stc-batch-clear-btn" class="menu_button" style="padding:5px 14px;font-size:.82em;color:#fff;white-space:nowrap">
                 <i class="fa-solid fa-xmark"></i> 取消选择</button>
         </div>
         <!-- Summary -->
-        <div style="color:#888;font-size:.82em;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap">
+        <div style="color:var(--stc-text-muted, #888);font-size:.82em;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap">
             <span>共 <strong style="color:var(--stc-text, #eee)">${total}</strong> 个用户
                 ${storageSearchTerm ? `（搜索"${esc(storageSearchTerm)}"）` : ''}
             </span>
@@ -1557,11 +1557,11 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
         <div style="overflow-x:auto;margin-top:8px">
         <table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:760px">
           <thead>
-            <tr style="color:#888;border-bottom:1px solid #2a3a5e">
+            <tr style="color:var(--stc-text-muted, #888);border-bottom:1px solid var(--stc-surface-2, #2a3a5e)">
               <th style="padding:8px 10px;text-align:center;width:36px">
                 <input type="checkbox" id="stc-select-all" title="全选/取消全选"
                     ${allChecked ? 'checked' : ''}
-                    style="width:15px;height:15px;cursor:pointer;accent-color:#6c63ff"></th>
+                    style="width:15px;height:15px;cursor:pointer;accent-color:var(--stc-accent, #6c63ff)"></th>
               <th style="padding:8px 10px;text-align:left">用户</th>
               <th style="padding:8px 10px;text-align:right">总占用</th>
               <th style="padding:8px 10px;text-align:right">聊天记录</th>
@@ -1679,7 +1679,7 @@ async function previewInactiveUsers() {
     const resultDiv = document.getElementById('stc-inactive-preview-result');
     if (!resultDiv) return;
     resultDiv.style.display = '';
-    resultDiv.innerHTML = `<div style="text-align:center;padding:16px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 扫描中...</div>`;
+    resultDiv.innerHTML = `<div style="text-align:center;padding:16px;color:var(--stc-text-muted, #888)"><i class="fa-solid fa-spinner fa-spin"></i> 扫描中...</div>`;
     try {
         const r = await fetch('/api/stc/users/delete-inactive', {
             method: 'POST', headers: getHeaders(),
@@ -1722,7 +1722,7 @@ function renderInactivePreview(candidates, page) {
           ${pager}
           <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:.82em;min-width:480px">
-            <thead><tr style="color:#888;border-bottom:1px solid #333">
+            <thead><tr style="color:var(--stc-text-muted, #888);border-bottom:1px solid var(--stc-border, #333)">
               <th style="padding:6px 8px;text-align:left">用户名</th>
               <th style="padding:6px 8px;text-align:left">最后登录</th>
               <th style="padding:6px 8px;text-align:right">未登录天数</th>
@@ -1735,15 +1735,15 @@ function renderInactivePreview(candidates, page) {
                   onmouseover="this.style.background='rgba(255,255,255,.04)'"
                   onmouseout="this.style.background=''">
                 <td style="padding:6px 8px;font-weight:600">${esc(c.handle)}</td>
-                <td style="padding:6px 8px;color:#888">${c.lastLoginAt ? new Date(c.lastLoginAt).toLocaleDateString('zh-CN') : '从未登录'}</td>
+                <td style="padding:6px 8px;color:var(--stc-text-muted, #888)">${c.lastLoginAt ? new Date(c.lastLoginAt).toLocaleDateString('zh-CN') : '从未登录'}</td>
                 <td style="padding:6px 8px;text-align:right;color:#f39c12">${c.daysInactive} 天</td>
-                <td style="padding:6px 8px;text-align:right;color:#888">${c.usedMiB != null ? c.usedMiB + ' MiB' : '-'}</td>
-                <td style="padding:6px 8px;color:#888">${c.email ? esc(c.email) : '<span style="color:#555">无邮箱</span>'}</td>
+                <td style="padding:6px 8px;text-align:right;color:var(--stc-text-muted, #888)">${c.usedMiB != null ? c.usedMiB + ' MiB' : '-'}</td>
+                <td style="padding:6px 8px;color:var(--stc-text-muted, #888)">${c.email ? esc(c.email) : '<span style="color:#555">无邮箱</span>'}</td>
               </tr>`).join('')}
             </tbody>
           </table></div>
           ${pager}
-          <div style="font-size:.8em;color:#888;margin-top:8px">
+          <div style="font-size:.8em;color:var(--stc-text-muted, #888);margin-top:8px">
             * 其中 ${all.filter(c => c.email).length} 人有邮箱可接收通知，
             ${all.filter(c => !c.email).length} 人无邮箱记录</div>
         </div>`;
@@ -1819,15 +1819,15 @@ async function renderTasksTab(container) {
     container.innerHTML = `
       <!-- Manual Cleanup -->
       <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:16px;margin-bottom:20px">
-        <h3 style="margin:0 0 12px"><i class="fa-solid fa-broom" style="color:#4a90e2;margin-right:6px"></i>立即清理备份文件</h3>
-        <p style="margin:0 0 14px;font-size:.88em;color:#aaa">
+        <h3 style="margin:0 0 12px"><i class="fa-solid fa-broom" style="color:var(--stc-accent, #4a90e2);margin-right:6px"></i>立即清理备份文件</h3>
+        <p style="margin:0 0 14px;font-size:.88em;color:var(--stc-text-muted, #aaa)">
           SillyTavern 会在每次保存时自动创建备份文件，长期积累会占用大量空间。
           清理操作不可恢复，建议先查看存储分析再决定是否清理。</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
           <div>
-            <div style="font-size:.8em;color:#888;margin-bottom:4px">指定用户（留空=清理所有用户）:</div>
+            <div style="font-size:.8em;color:var(--stc-text-muted, #888);margin-bottom:4px">指定用户（留空=清理所有用户）:</div>
             <div style="display:flex;gap:6px;align-items:center">
-              <select id="stc-task-user" style="padding:7px 12px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;min-width:160px">
+              <select id="stc-task-user" style="padding:7px 12px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);min-width:160px">
                 <option value="">所有用户</option>
               </select>
               <button id="stc-task-reload-users" class="menu_button" style="padding:7px 10px;font-size:.8em;color:#fff" title="刷新用户列表">
@@ -1843,10 +1843,10 @@ async function renderTasksTab(container) {
       <!-- Scheduled Task Config -->
       <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:16px">
         <h3 style="margin:0 0 12px"><i class="fa-solid fa-clock" style="color:#9b59b6;margin-right:6px"></i>自动定时清理配置</h3>
-        <p style="margin:0 0 14px;font-size:.88em;color:#aaa">
+        <p style="margin:0 0 14px;font-size:.88em;color:var(--stc-text-muted, #aaa)">
           启用后，服务器将在后台按指定间隔自动清理所有用户的备份文件。</p>
         <div id="stc-task-config-form">
-          <div style="text-align:center;padding:20px;color:#888"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>
+          <div style="text-align:center;padding:20px;color:var(--stc-text-muted, #888)"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div>
         </div>
       </div>`;
 
@@ -1881,19 +1881,19 @@ async function loadTaskConfig() {
           <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer">
             <input id="stc-sched-enabled" type="checkbox" ${cb.enabled ? 'checked' : ''}> 启用自动清理备份</label>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-            <label style="font-size:.85em;color:#aaa">清理间隔（小时）:</label>
+            <label style="font-size:.85em;color:var(--stc-text-muted, #aaa)">清理间隔（小时）:</label>
             <input id="stc-sched-interval" type="number" min="1" max="720" value="${cb.intervalHours || 24}"
-              style="padding:7px 10px;border-radius:6px;border:1px solid #333;background:#0f3460;color:#eee;width:80px">
-            <span style="font-size:.8em;color:#888">常用: 24=每天, 168=每周, 720=每月</span>
+              style="padding:7px 10px;border-radius:6px;border:1px solid var(--stc-border, #333);background:var(--stc-surface-2, #0f3460);color:var(--stc-text, #eee);width:80px">
+            <span style="font-size:.8em;color:var(--stc-text-muted, #888)">常用: 24=每天, 168=每周, 720=每月</span>
           </div>
-          <div style="font-size:.82em;color:#666;margin-bottom:14px">
+          <div style="font-size:.82em;color:var(--stc-text-muted, #666);margin-bottom:14px">
             <i class="fa-solid fa-info-circle"></i>
-            上次运行: <span style="color:#aaa">${lastRun}</span>
+            上次运行: <span style="color:var(--stc-text-muted, #aaa)">${lastRun}</span>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <button id="stc-sched-save" class="menu_button" style="padding:8px 20px;background:#27ae60;font-size:.88em;white-space:nowrap;color:#fff">
               <i class="fa-solid fa-save"></i> 保存配置</button>
-            <span style="font-size:.8em;color:#888">保存后立即生效，无需重启服务</span>
+            <span style="font-size:.8em;color:var(--stc-text-muted, #888)">保存后立即生效，无需重启服务</span>
           </div>`;
 
         document.getElementById('stc-sched-save')?.addEventListener('click', saveTaskConfig);

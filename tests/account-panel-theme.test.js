@@ -42,4 +42,12 @@ describe('stc-admin-panel admin-panel.js warm-theme adaptation', () => {
     test('console container background is theme-adaptive', () => {
         expect(js).toContain('var(--stc-surface, #16213e)');
     });
+
+    test('form input backgrounds are theme-adaptive', () => {
+        expect(js).toContain('var(--stc-surface-2, #0f3460)');
+    });
+
+    test('muted text stays readable on the warm cream background', () => {
+        expect(js).toContain('var(--stc-text-muted, #aaa)');
+    });
 });
