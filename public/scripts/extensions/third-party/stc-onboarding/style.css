@@ -1,0 +1,131 @@
+/* ── STC Onboarding ───────────────────────────────────────────
+ * Non-blocking, fixed, bottom-centered welcome card shown once
+ * to first-time users. Reuses P0's --stc-* design tokens (with
+ * literal fallbacks) so it stays legible under any theme.
+ * ──────────────────────────────────────────────────────────── */
+
+#stc-onboarding-card {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 4000;
+    width: min(92vw, 460px);
+    background: var(--stc-surface, #fff);
+    color: var(--stc-text, #333);
+    border: 1px solid var(--stc-border, rgba(0, 0, 0, .12));
+    border-radius: var(--stc-radius-lg, 20px);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, .18);
+    padding: 20px 22px;
+    animation: stcOnbUp .4s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes stcOnbUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 16px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+.stc-onb-title {
+    font-size: 1.15em;
+    font-weight: 700;
+    margin: 0 0 4px;
+    padding-right: 24px;
+}
+
+.stc-onb-subtitle {
+    font-size: .92em;
+    opacity: .75;
+    margin: 0 0 14px;
+}
+
+.stc-onb-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.stc-onb-footer {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ── Button resets ────────────────────────────────────────────
+ * Real <button> elements so they stay keyboard-accessible; strip
+ * native chrome and inherit the surrounding font. */
+.stc-onb-btn,
+.stc-onb-dismiss,
+.stc-onb-close {
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    line-height: normal;
+    cursor: pointer;
+}
+
+.stc-onb-btn {
+    display: block;
+    width: 100%;
+    background: var(--stc-accent-soft, rgba(0, 0, 0, .05));
+    color: var(--stc-text, #333);
+    border: 1px solid var(--stc-border, rgba(0, 0, 0, .12));
+    border-radius: var(--stc-radius, 14px);
+    padding: 10px 14px;
+    text-align: left;
+    transition: border-color .15s, background .15s;
+}
+
+.stc-onb-btn:hover {
+    border-color: var(--stc-accent, #888);
+}
+
+.stc-onb-dismiss {
+    background: transparent;
+    color: var(--stc-text, #333);
+    border: none;
+    opacity: .65;
+    font-size: .85em;
+    padding: 4px 6px;
+    text-decoration: underline;
+}
+
+.stc-onb-dismiss:hover {
+    opacity: 1;
+}
+
+.stc-onb-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: var(--stc-text, #333);
+    opacity: .6;
+    font-size: 1.3em;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--stc-radius, 14px);
+}
+
+.stc-onb-close:hover {
+    opacity: 1;
+    background: var(--stc-accent-soft, rgba(0, 0, 0, .05));
+}
+
+/* ── Keyboard focus ───────────────────────────────────────────
+ * Every actionable element in the card gets a visible outline. */
+.stc-onb-btn:focus-visible,
+.stc-onb-dismiss:focus-visible,
+.stc-onb-close:focus-visible {
+    outline: 2px solid var(--stc-accent, #888);
+    outline-offset: 2px;
+}
