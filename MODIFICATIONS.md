@@ -464,6 +464,28 @@ enableDownloadableTokenizers: false
 
 > 运行中的 VPS 如果已经生成根目录 `config.yaml`，升级默认配置不会自动覆盖该文件。需要手动确认运行配置中的上述开关也为 `false`。
 
+## 默认主题（P0 温暖主题层）
+
+为提升新用户友好度，新增两套温暖主题并将新用户默认主题改为浅色「暖阳拿铁」。
+
+**新增文件（不受上游影响）：**
+- `default/content/themes/warm-latte.json`（暖阳拿铁，浅色默认）
+- `default/content/themes/warm-cocoa.json`（暖夜可可，深色可切换）
+
+**修改的上游文件（升级时需复原）：**
+- `default/content/index.json`：新增两条 `{filename:"themes/warm-*.json", type:"theme"}`。
+- `default/content/settings.json` → `power_user`：`theme` 改为 `暖阳拿铁`，并把
+  `main_text_color / italics_text_color / underline_text_color / quote_text_color /
+  chat_tint_color / blur_tint_color / user_mes_blur_tint_color / bot_mes_blur_tint_color /
+  shadow_color / blur_strength / noShadows` 改为浅色暖值（详见
+  `docs/superpowers/plans/2026-07-15-warm-theme-layer.md` Task 4）。
+
+**升级排查**：合并上游后若 `default/content/settings.json` 被覆盖，需按上表重新设置
+`power_user.theme` 与颜色字段；若 `index.json` 被覆盖需重新注册两个主题。仅影响新用户，
+不改动老用户已保存的主题。
+
+**测试**：`tests/warm-theme.test.js`（`cd tests && npm run test:unit -- warm-theme`）。
+
 ## API 路由汇总
 
 ### 公开 API（无需认证）
