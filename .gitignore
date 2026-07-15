@@ -61,3 +61,6 @@ test-results/
 
 !public/scripts/extensions/third-party/stc-admin-panel/
 !public/scripts/extensions/third-party/stc-admin-panel/**
+
+# Superpowers brainstorming scratch (mockups, session state)
+.superpowers/
