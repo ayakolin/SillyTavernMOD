@@ -95,3 +95,23 @@ describe('content index registration', () => {
         expect(files.filter((f) => f === 'themes/warm-cocoa.json')).toHaveLength(1);
     });
 });
+
+describe('new-user seed settings default to warm-latte', () => {
+    const s = readJson('default/content/settings.json');
+    const pu = s.power_user;
+    const latte = readJson('default/content/themes/warm-latte.json');
+
+    test('default theme is 暖阳拿铁', () => {
+        expect(pu.theme).toBe('暖阳拿铁');
+    });
+    test('seed colors match the latte theme', () => {
+        expect(pu.main_text_color).toBe(latte.main_text_color);
+        expect(pu.blur_tint_color).toBe(latte.blur_tint_color);
+        expect(pu.user_mes_blur_tint_color).toBe(latte.user_mes_blur_tint_color);
+        expect(pu.bot_mes_blur_tint_color).toBe(latte.bot_mes_blur_tint_color);
+        expect(pu.border_color).toBe(latte.border_color);
+    });
+    test('seed main text meets WCAG AA on seed blur tint', () => {
+        expect(contrastRatio(pu.main_text_color, pu.blur_tint_color)).toBeGreaterThanOrEqual(4.5);
+    });
+});
