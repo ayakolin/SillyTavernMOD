@@ -7,9 +7,35 @@
 
 const STORAGE_KEY = 'stc_onboarded';
 const SHOW_DELAY_MS = 1200;
+const ST_DIALOG_POLL_MS = 500;
+const ST_DIALOG_MAX_WAIT_MS = 90000;
 
 const API_STATUS_SELECTOR = '#API-status-top';
 const CHARACTER_DRAWER_SELECTOR = '#rightNavDrawerIcon';
+const ST_DIALOG_SELECTOR = '#shadow_popup';
+
+/**
+ * Detect whether SillyTavern's own dialog (e.g. the first-run persona
+ * picker rendered in #shadow_popup) is currently open and visible.
+ * ST toggles both `display` and `opacity` when showing/hiding it, so we
+ * check both to avoid racing a fade-out. Defensive: never throws, and
+ * treats a missing element as "not open".
+ * @returns {boolean} true when the ST dialog is open and visible
+ */
+function isStDialogOpen() {
+    try {
+        const el = document.querySelector(ST_DIALOG_SELECTOR);
+        if (!el) return false;
+
+        const style = getComputedStyle(el);
+        if (style.display === 'none') return false;
+        if (style.opacity === '0' || el.style.opacity === '0') return false;
+
+        return true;
+    } catch {
+        return false;
+    }
+}
 
 /**
  * Pure helper: given the raw stored value of the onboarding flag,
@@ -139,18 +165,38 @@ function injectOnboardingCard() {
     document.body.appendChild(card);
 }
 
-/** Show the onboarding card once, unless the user has already seen/dismissed it. */
-function maybeShowOnboarding() {
+/**
+ * After the initial settle delay, wait until no ST dialog (e.g. the
+ * first-run persona picker in #shadow_popup) is open before injecting the
+ * onboarding card, so the two never visually overlap. If the user is
+ * already onboarded, do nothing. Otherwise poll every ~500ms, capping the
+ * total wait at ~90s — if still blocked at the cap, show the card anyway
+ * so a stuck/long-lived ST dialog never permanently strands the user.
+ */
+function waitForStDialogThenShow() {
     if (document.getElementById('stc-onboarding-card')) return; // race guard
 
     const stored = getStoredFlag();
     if (!shouldShowOnboarding(stored)) return;
 
-    injectOnboardingCard();
+    if (!isStDialogOpen()) {
+        injectOnboardingCard();
+        return;
+    }
+
+    let waited = 0;
+    const intervalId = setInterval(() => {
+        waited += ST_DIALOG_POLL_MS;
+
+        if (!isStDialogOpen() || waited >= ST_DIALOG_MAX_WAIT_MS) {
+            clearInterval(intervalId);
+            injectOnboardingCard();
+        }
+    }, ST_DIALOG_POLL_MS);
 }
 
 jQuery(() => {
     // Wait for the app to settle (and avoid fighting with ST's own
     // post-login dialogs, e.g. the persona picker) before showing the card.
-    setTimeout(maybeShowOnboarding, SHOW_DELAY_MS);
+    setTimeout(waitForStDialogThenShow, SHOW_DELAY_MS);
 });

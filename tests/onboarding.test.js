@@ -76,4 +76,8 @@ describe('stc-onboarding index.js', () => {
     test('guards against double-injecting the card', () => {
         expect(js).toContain("getElementById('stc-onboarding-card')");
     });
+    test('defers showing the card until the ST first-run dialog closes', () => {
+        expect(js).toContain('function isStDialogOpen');
+        expect(js).toContain('#shadow_popup');
+    });
 });
