@@ -60,6 +60,7 @@ function applyMode(mode) {
         toggle.title = mode === MODE_SIMPLE
             ? '当前：简单模式（点击切换到进阶模式，显示全部抽屉）'
             : '当前：进阶模式（点击切换到简单模式，隐藏高级抽屉）';
+        toggle.setAttribute('aria-pressed', mode === MODE_ADVANCED ? 'true' : 'false');
     }
 }
 
@@ -99,7 +100,8 @@ async function injectModeToggle() {
     }
     if (document.getElementById('stc-mode-toggle')) return; // race guard
 
-    const toggle = document.createElement('div');
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
     toggle.id = 'stc-mode-toggle';
     toggle.addEventListener('click', () => {
         const current = getStoredMode();

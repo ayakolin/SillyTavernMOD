@@ -73,4 +73,11 @@ describe('stc-simple-mode index.js', () => {
         expect(js).toContain('top-settings-holder');
         expect(js).toContain('stc-mode-toggle');
     });
+    test('creates the toggle as a real, keyboard-accessible button', () => {
+        expect(js).toContain("document.createElement('button')");
+        expect(js).toContain("toggle.type = 'button'");
+    });
+    test('reflects mode via aria-pressed in applyMode', () => {
+        expect(js).toContain("toggle.setAttribute('aria-pressed'");
+    });
 });

@@ -15,6 +15,10 @@ body.stc-simple #extensions-settings-button {
  * Reuses P0's --stc-* design tokens (with fallbacks) so it stays
  * legible under any theme, not just the warm ones. */
 #stc-mode-toggle {
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    line-height: normal;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -33,4 +37,9 @@ body.stc-simple #extensions-settings-button {
 
 #stc-mode-toggle:hover {
     border-color: var(--stc-accent, #888);
+}
+
+#stc-mode-toggle:focus-visible {
+    outline: 2px solid var(--stc-accent, #888);
+    outline-offset: 2px;
 }
