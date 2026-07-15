@@ -88,7 +88,7 @@ SillyTavern 原生主题系统：主题是 JSON 文件（`default/content/themes
 |---|---|
 | `--stc-bg` | `#272019 → #1E1714` |
 | `--stc-surface` | `#2E2721` |
-| `--stc-surface-2` | `#2E2721` |
+| `--stc-surface-2` | `#352D26` |
 | `--stc-text` | `#F0E6D8` |
 | `--stc-text-muted` | `#9A8A78` |
 | `--stc-accent` | `#F0A878` |
