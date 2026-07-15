@@ -666,7 +666,7 @@ function injectUserInfo() {
     closeBtn.innerHTML = '×';
     closeBtn.style.cssText = [
         'position:absolute', 'top:2px', 'right:4px',
-        'background:none', 'border:none', 'color:rgba(220,220,210,.5)',
+        'background:none', 'border:none', 'color:var(--stc-text-muted, rgba(220,220,210,.5))',
         'font-size:14px', 'line-height:1', 'cursor:pointer', 'padding:0 2px',
         'pointer-events:auto',
     ].join(';');
@@ -714,7 +714,7 @@ function injectUserInfo() {
             'width:30px', 'height:30px',
             'border-radius:50%',
             'background:var(--stc-surface-2, rgba(22,33,62,.9))',
-            'color:rgba(220,220,210,.7)',
+            'color:var(--stc-text, rgba(220,220,210,.7))',
             'font-size:14px',
             'display:none',
             'align-items:center', 'justify-content:center',

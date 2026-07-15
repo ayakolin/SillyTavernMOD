@@ -228,7 +228,7 @@ export async function initAdminPanel() {
                 b.style.borderBottom = 'none';
             });
             btn.style.background = 'var(--stc-surface, #16213e)';
-            btn.style.color = '#fff';
+            btn.style.color = 'var(--stc-text, #fff)';
             btn.style.borderBottom = '2px solid var(--stc-accent, #6c63ff)';
             clearInterval(systemLoadInterval);
             systemLoadInterval = null;
@@ -1539,7 +1539,7 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
         </div>
         <!-- Batch action bar -->
         <div id="stc-batch-bar" style="display:${selectedCount > 0 ? 'flex' : 'none'};align-items:center;gap:10px;padding:8px 12px;background:var(--stc-accent-soft, rgba(108,99,255,.15));border:1px solid rgba(108,99,255,.4);border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
-            <span style="font-size:.85em;color:#ccc"><i class="fa-solid fa-check-square" style="color:var(--stc-accent, #6c63ff);margin-right:4px"></i>已选 <strong style="color:#fff" id="stc-selected-count">${selectedCount}</strong> 个用户</span>
+            <span style="font-size:.85em;color:var(--stc-text-muted, #ccc)"><i class="fa-solid fa-check-square" style="color:var(--stc-accent, #6c63ff);margin-right:4px"></i>已选 <strong style="color:var(--stc-text, #fff)" id="stc-selected-count">${selectedCount}</strong> 个用户</span>
             <button id="stc-batch-delete-btn" class="menu_button" style="padding:5px 14px;font-size:.82em;background:#c0392b;color:#fff;white-space:nowrap">
                 <i class="fa-solid fa-trash-can"></i> 批量删除</button>
             <button id="stc-batch-clear-btn" class="menu_button" style="padding:5px 14px;font-size:.82em;color:#fff;white-space:nowrap">
