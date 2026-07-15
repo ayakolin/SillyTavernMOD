@@ -6,7 +6,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const readJson = (rel) => JSON.parse(readFileSync(root + rel, 'utf8'));
 
 // 34-field theme schema (matches default/content/themes/Cappuccino.json)
-export const REQUIRED_THEME_KEYS = [
+const REQUIRED_THEME_KEYS = [
     'name', 'blur_strength', 'main_text_color', 'italics_text_color',
     'underline_text_color', 'quote_text_color', 'blur_tint_color', 'chat_tint_color',
     'user_mes_blur_tint_color', 'bot_mes_blur_tint_color', 'shadow_color', 'shadow_width',
@@ -35,7 +35,7 @@ function relLum([r, g, b]) {
 }
 // Alpha channel is ignored here; this is only safe while each tint composites over a
 // like-toned background. Revisit this if the underlying colors change.
-export function contrastRatio(fg, bg) {
+function contrastRatio(fg, bg) {
     const L1 = relLum(toRgb(fg));
     const L2 = relLum(toRgb(bg));
     const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
