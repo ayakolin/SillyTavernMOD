@@ -80,4 +80,8 @@ describe('stc-onboarding index.js', () => {
         expect(js).toContain('function isStDialogOpen');
         expect(js).toContain('#shadow_popup');
     });
+    test('detects both modern (dialog.popup) and legacy ST dialogs', () => {
+        expect(js).toContain('dialog.popup[open]');
+        expect(js).toContain('#shadow_popup');
+    });
 });

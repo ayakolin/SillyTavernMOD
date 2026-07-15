@@ -6,25 +6,34 @@
 // chat. Non-blocking (no full-screen dim/overlay), appears once.
 
 const STORAGE_KEY = 'stc_onboarded';
-const SHOW_DELAY_MS = 1200;
+const SHOW_DELAY_MS = 1800;
 const ST_DIALOG_POLL_MS = 500;
 const ST_DIALOG_MAX_WAIT_MS = 90000;
 
 const API_STATUS_SELECTOR = '#API-status-top';
 const CHARACTER_DRAWER_SELECTOR = '#rightNavDrawerIcon';
-const ST_DIALOG_SELECTOR = '#shadow_popup';
+// SillyTavern shows dialogs two ways: the modern Popup system renders a
+// native <dialog class="popup" open> (used by the first-run welcome /
+// persona setup), and the legacy path uses #shadow_popup / #dialogue_popup.
+const ST_MODERN_DIALOG_SELECTOR = 'dialog.popup[open]';
+const ST_LEGACY_DIALOG_SELECTOR = '#shadow_popup';
 
 /**
- * Detect whether SillyTavern's own dialog (e.g. the first-run persona
- * picker rendered in #shadow_popup) is currently open and visible.
- * ST toggles both `display` and `opacity` when showing/hiding it, so we
- * check both to avoid racing a fade-out. Defensive: never throws, and
- * treats a missing element as "not open".
- * @returns {boolean} true when the ST dialog is open and visible
+ * Detect whether any SillyTavern dialog (e.g. the first-run welcome /
+ * persona setup) is currently open, so we can defer our card until it
+ * closes and avoid overlapping it.
+ * Covers BOTH the modern Popup (`<dialog class="popup" open>`) and the
+ * legacy `#shadow_popup` (which toggles `display` + `opacity` when hiding,
+ * so we check both to avoid racing a fade-out). Defensive: never throws.
+ * @returns {boolean} true when an ST dialog is open and visible
  */
 function isStDialogOpen() {
     try {
-        const el = document.querySelector(ST_DIALOG_SELECTOR);
+        // Modern Popup system: a native open <dialog>.
+        if (document.querySelector(ST_MODERN_DIALOG_SELECTOR)) return true;
+
+        // Legacy #shadow_popup.
+        const el = document.querySelector(ST_LEGACY_DIALOG_SELECTOR);
         if (!el) return false;
 
         const style = getComputedStyle(el);
