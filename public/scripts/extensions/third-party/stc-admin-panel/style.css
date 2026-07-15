@@ -1,7 +1,7 @@
 #stc-user-info {
     position: fixed;
-    background: rgba(22, 33, 62, 0.95);
-    color: #ddd;
+    background: var(--stc-surface-2, rgba(22, 33, 62, 0.95));
+    color: var(--stc-text, #ddd);
     padding: 8px 12px;
     border-radius: 8px;
     font-size: 12px;
@@ -12,7 +12,7 @@
     user-select: none;
     transition: box-shadow 0.2s, background 0.2s;
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--stc-border, rgba(255, 255, 255, 0.08));
     pointer-events: auto;
     visibility: visible;
     opacity: 1;
@@ -25,14 +25,14 @@
 }
 
 #stc-user-info:hover {
-    background: rgba(22, 33, 62, 1);
+    background: var(--stc-surface, rgba(22, 33, 62, 1));
     transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 
 #stc-admin-btn {
     position: fixed;
-    background: #6c63ff;
+    background: var(--stc-accent, #6c63ff);
     color: #fff;
     width: 42px;
     height: 42px;
@@ -52,24 +52,24 @@
 }
 
 #stc-admin-btn:hover {
-    background: #5a52e0;
+    background: var(--stc-accent-hover, #5a52e0);
     transform: scale(1.15);
     box-shadow: 0 4px 20px rgba(108, 99, 255, 0.8);
 }
 
 #stc-nav-admin-btn {
     cursor: pointer;
-    color: #8ab4f8;
+    color: var(--stc-accent, #8ab4f8);
     transition: color 0.2s;
 }
 
 #stc-nav-admin-btn:hover {
-    color: #6c63ff;
+    color: var(--stc-accent-hover, #6c63ff);
 }
 
 #stc-nav-storage-btn {
     cursor: pointer;
-    color: #4a90e2;
+    color: var(--stc-accent, #4a90e2);
     transition: color 0.2s;
 }
 
@@ -94,14 +94,14 @@
 }
 
 .stc-panel {
-    background: #16213e;
+    background: var(--stc-surface, #16213e);
     border-radius: 12px;
     padding: 30px;
     max-width: 600px;
     width: 90%;
     max-height: 80vh;
     overflow-y: auto;
-    color: #eee;
+    color: var(--stc-text, #eee);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     animation: stcSlideUp 0.2s ease;
 }
@@ -118,7 +118,7 @@
 }
 
 .stc-admin-card {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--stc-surface-2, rgba(255, 255, 255, 0.05));
     padding: 15px;
     border-radius: 8px;
     cursor: pointer;
@@ -126,7 +126,7 @@
 }
 
 .stc-admin-card:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--stc-accent-soft, rgba(255, 255, 255, 0.1));
     transform: translateY(-2px);
 }
 
@@ -145,8 +145,8 @@
 }
 
 .stc-tab-btn:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    color: #ddd !important;
+    background: var(--stc-accent-soft, rgba(255, 255, 255, 0.08)) !important;
+    color: var(--stc-text, #ddd) !important;
 }
 
 #stc-tab-content {
@@ -155,7 +155,7 @@
 
 /* Table styling inside admin panel */
 #stc-admin-modal table tr:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--stc-accent-soft, rgba(255, 255, 255, 0.04));
 }
 
 /* Announcement items */
@@ -163,13 +163,13 @@
     border-radius: 8px;
     padding: 12px 16px;
     margin-bottom: 10px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--stc-surface-2, rgba(255, 255, 255, 0.04));
     transition: background 0.15s;
 }
 
 /* User activity items in system tab */
 .stc-user-row:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--stc-accent-soft, rgba(255, 255, 255, 0.06));
 }
 
 /* ── Welcome-prompt Site Nav Buttons (首页 / 论坛 / 角色卡库) ─── */

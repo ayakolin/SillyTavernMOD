@@ -219,7 +219,7 @@ function showExpiryWarningToast(info) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a href="#" onclick="document.getElementById('stc-expiry-toast').remove();showUserPanel();return false;"
                style="flex:1;padding:8px 14px;border-radius:7px;text-align:center;text-decoration:none;font-size:.84em;
-                      font-weight:600;background:linear-gradient(135deg,#4a90e2,#6c63ff);color:#fff;
+                      font-weight:600;background:linear-gradient(135deg, var(--stc-accent, #4a90e2), var(--stc-accent-hover, #6c63ff));color:#fff;
                       display:flex;align-items:center;justify-content:center;gap:6px">
                 <i class="fa-solid fa-rotate-right"></i> 立即续费
             </a>
@@ -266,7 +266,7 @@ async function showPasswordReminderPopup(info) {
         const header = document.createElement('div');
         header.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:4px';
         header.innerHTML = `
-            <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#4a90e2,#6c63ff);
+            <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg, var(--stc-accent, #4a90e2), var(--stc-accent-hover, #6c63ff));
                 display:flex;align-items:center;justify-content:center;font-size:1.5em;color:#fff">
                 <i class="fa-solid fa-key"></i>
             </div>
