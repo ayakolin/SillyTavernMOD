@@ -38,7 +38,11 @@ function isStDialogOpen() {
 
         const style = getComputedStyle(el);
         if (style.display === 'none') return false;
-        if (style.opacity === '0' || el.style.opacity === '0') return false;
+        // Use the COMPUTED opacity (mid-transition it is an intermediate
+        // value, only reaching '0' when the fade-out completes) so we keep
+        // treating the dialog as open until it has fully faded, rather than
+        // the inline target value which flips to '0' at the fade's start.
+        if (style.opacity === '0') return false;
 
         return true;
     } catch {
