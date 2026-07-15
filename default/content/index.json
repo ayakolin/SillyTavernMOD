@@ -24,6 +24,14 @@
         "type": "theme"
     },
     {
+        "filename": "themes/warm-latte.json",
+        "type": "theme"
+    },
+    {
+        "filename": "themes/warm-cocoa.json",
+        "type": "theme"
+    },
+    {
         "filename": "backgrounds/__transparent.png",
         "type": "background"
     },

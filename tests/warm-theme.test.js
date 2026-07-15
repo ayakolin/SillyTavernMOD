@@ -79,3 +79,19 @@ describe('warm-cocoa theme (暖夜可可)', () => {
         }
     });
 });
+
+describe('content index registration', () => {
+    const index = readJson('default/content/index.json');
+    const files = index.map((e) => e.filename);
+
+    test('warm-latte is registered as a theme', () => {
+        expect(index).toContainEqual({ filename: 'themes/warm-latte.json', type: 'theme' });
+    });
+    test('warm-cocoa is registered as a theme', () => {
+        expect(index).toContainEqual({ filename: 'themes/warm-cocoa.json', type: 'theme' });
+    });
+    test('no duplicate registration', () => {
+        expect(files.filter((f) => f === 'themes/warm-latte.json')).toHaveLength(1);
+        expect(files.filter((f) => f === 'themes/warm-cocoa.json')).toHaveLength(1);
+    });
+});
