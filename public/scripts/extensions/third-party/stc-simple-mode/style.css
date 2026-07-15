@@ -1,0 +1,36 @@
+/* ── STC Simple Mode ─────────────────────────────────────────
+ * Progressive disclosure: hide advanced drawers while
+ * body.stc-simple is present. Purely visual — no functionality
+ * is removed, switching back to advanced mode restores them.
+ * ──────────────────────────────────────────────────────────── */
+
+body.stc-simple #ai-config-button,
+body.stc-simple #advanced-formatting-button,
+body.stc-simple #WI-SP-button,
+body.stc-simple #extensions-settings-button {
+    display: none !important;
+}
+
+/* ── Mode toggle pill ─────────────────────────────────────────
+ * Reuses P0's --stc-* design tokens (with fallbacks) so it stays
+ * legible under any theme, not just the warm ones. */
+#stc-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    margin: 0 6px;
+    cursor: pointer;
+    border-radius: 999px;
+    background: var(--stc-surface-2, rgba(255, 255, 255, .08));
+    color: var(--stc-text, inherit);
+    border: 1px solid var(--stc-border, rgba(255, 255, 255, .15));
+    font-size: .82em;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background .15s, border-color .15s;
+}
+
+#stc-mode-toggle:hover {
+    border-color: var(--stc-accent, #888);
+}
