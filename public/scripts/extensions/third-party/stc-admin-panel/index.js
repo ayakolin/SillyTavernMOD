@@ -713,7 +713,7 @@ function injectUserInfo() {
             'bottom:12px', 'left:12px',
             'width:30px', 'height:30px',
             'border-radius:50%',
-            'background:rgba(22,33,62,.9)',
+            'background:var(--stc-surface-2, rgba(22,33,62,.9))',
             'color:rgba(220,220,210,.7)',
             'font-size:14px',
             'display:none',
@@ -1812,7 +1812,7 @@ function injectAdminButton() {
         'align-items:center',
         'justify-content:center',
         'border-radius:50%',
-        'background:#6c63ff',
+        'background:var(--stc-accent, #6c63ff)',
         'color:#fff',
         'font-size:18px',
         'box-shadow:0 2px 12px rgba(108,99,255,.6)',
@@ -1858,7 +1858,7 @@ function injectAdminNavLink() {
         // Skip this fallback on mobile; floating admin button is the primary入口.
         if (isMobileViewport()) return;
         btn.style.cssText = `position:fixed;top:0;left:50%;transform:translateX(-50%);
-            background:#6c63ff;color:#fff;padding:6px 20px;border-radius:0 0 10px 10px;
+            background:var(--stc-accent, #6c63ff);color:#fff;padding:6px 20px;border-radius:0 0 10px 10px;
             cursor:pointer;z-index:2147483647;font-size:14px;
             display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.3);`;
         getStcHost().appendChild(btn);
@@ -2008,7 +2008,7 @@ async function openAdminPanel() {
         const overlay = document.createElement('div');
         overlay.id = 'stc-admin-modal';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2147483647;display:flex;align-items:center;justify-content:center';
-        overlay.innerHTML = `<div style="background:#16213e;border-radius:12px;padding:30px;color:#eee;max-width:400px;text-align:center">
+        overlay.innerHTML = `<div style="background:var(--stc-surface, #16213e);border-radius:12px;padding:30px;color:var(--stc-text, #eee);max-width:400px;text-align:center">
             <i class="fa-solid fa-triangle-exclamation" style="color:#e74c3c;font-size:2em;margin-bottom:12px;display:block"></i>
             <h3 style="margin:0 0 10px">管理面板加载失败</h3>
             <p style="color:#888;font-size:.9em">${e.message}</p>

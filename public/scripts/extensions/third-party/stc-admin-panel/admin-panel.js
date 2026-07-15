@@ -156,7 +156,7 @@ function createPagination(current, total, btnClass = 'stc-page-btn') {
         <button class="${btnClass} menu_button" data-page="${current - 1}" ${current <= 1 ? 'disabled' : ''} style="padding:4px 10px;white-space:nowrap">
             <i class="fa-solid fa-chevron-left"></i> 上一页</button>
         ${pages.map(p => p === '...' ? `<span style="opacity:.5;padding:0 4px">...</span>` :
-            `<button class="${btnClass} menu_button" data-page="${p}" ${p === current ? 'disabled style="background:rgba(108,99,255,.4)"' : ''} style="padding:4px 10px;min-width:36px">${p}</button>`
+            `<button class="${btnClass} menu_button" data-page="${p}" ${p === current ? 'disabled style="background:var(--stc-accent-soft, rgba(108,99,255,.4))"' : ''} style="padding:4px 10px;min-width:36px">${p}</button>`
         ).join('')}
         <button class="${btnClass} menu_button" data-page="${current + 1}" ${current >= total ? 'disabled' : ''} style="padding:4px 10px;white-space:nowrap">
             下一页 <i class="fa-solid fa-chevron-right"></i></button>
@@ -167,7 +167,7 @@ function createPagination(current, total, btnClass = 'stc-page-btn') {
 export function buildAdminPanelHTML() {
     return `
 <div id="stc-admin-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2147483647;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
-  <div style="position:relative;z-index:1;background:#16213e;border-radius:12px;width:100%;max-width:960px;min-height:500px;box-shadow:0 8px 32px rgba(0,0,0,.5);color:#eee;font-family:sans-serif">
+  <div style="position:relative;z-index:1;background:var(--stc-surface, #16213e);border-radius:12px;width:100%;max-width:960px;min-height:500px;box-shadow:0 8px 32px rgba(0,0,0,.5);color:var(--stc-text, #eee);font-family:sans-serif">
 
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #2a3a5e">
@@ -227,7 +227,7 @@ export async function initAdminPanel() {
                 b.style.color = '#aaa';
                 b.style.borderBottom = 'none';
             });
-            btn.style.background = '#16213e';
+            btn.style.background = 'var(--stc-surface, #16213e)';
             btn.style.color = '#fff';
             btn.style.borderBottom = '2px solid #6c63ff';
             clearInterval(systemLoadInterval);
@@ -638,7 +638,7 @@ async function renderAnnouncementsTab(container) {
     container.innerHTML = `
       <!-- Type switch -->
       <div style="display:flex;gap:8px;margin-bottom:16px;justify-content:center">
-        <button id="stc-ann-tab-main" class="menu_button" data-anntype="main" style="padding:7px 24px;background:#6c63ff;white-space:nowrap;flex:0 1 auto;color:#fff">
+        <button id="stc-ann-tab-main" class="menu_button" data-anntype="main" style="padding:7px 24px;background:var(--stc-accent, #6c63ff);white-space:nowrap;flex:0 1 auto;color:#fff">
           <i class="fa-solid fa-home"></i> 主站公告</button>
         <button id="stc-ann-tab-login" class="menu_button" data-anntype="login" style="padding:7px 24px;white-space:nowrap;flex:0 1 auto;color:#fff">
           <i class="fa-solid fa-right-to-bracket"></i> 登录页面公告</button>
@@ -1484,14 +1484,14 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
 
         return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s"
                     onmouseover="this.style.background='rgba(255,255,255,.04)'"
-                    onmouseout="this.style.background='${isChecked ? 'rgba(108,99,255,.15)' : ''}'">
+                    onmouseout="this.style.background='${isChecked ? 'var(--stc-accent-soft, rgba(108,99,255,.15))' : ''}'">
             <td style="padding:8px 10px;text-align:center;width:36px">
                 <input type="checkbox" class="stc-user-checkbox" data-handle="${esc(u.handle)}"
                     ${isChecked ? 'checked' : ''}
                     style="width:15px;height:15px;cursor:pointer;accent-color:#6c63ff">
             </td>
             <td style="padding:8px 10px;font-weight:600">${esc(u.handle)}</td>
-            <td style="padding:8px 10px;text-align:right;color:#eee;font-weight:600">${u.totalMiB} MiB</td>
+            <td style="padding:8px 10px;text-align:right;color:var(--stc-text, #eee);font-weight:600">${u.totalMiB} MiB</td>
             <td style="padding:8px 10px;text-align:right;color:#aaa">${c.chats || 0}</td>
             <td style="padding:8px 10px;text-align:right;color:#aaa">${c.characters || 0}</td>
             <td style="padding:8px 10px;text-align:right;color:${backupMiB > 10 ? '#f39c12' : '#aaa'}"
@@ -1538,7 +1538,7 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
                 <i class="fa-solid ${sortIcon}"></i> ${sortLabel}</button>
         </div>
         <!-- Batch action bar -->
-        <div id="stc-batch-bar" style="display:${selectedCount > 0 ? 'flex' : 'none'};align-items:center;gap:10px;padding:8px 12px;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.4);border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
+        <div id="stc-batch-bar" style="display:${selectedCount > 0 ? 'flex' : 'none'};align-items:center;gap:10px;padding:8px 12px;background:var(--stc-accent-soft, rgba(108,99,255,.15));border:1px solid rgba(108,99,255,.4);border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
             <span style="font-size:.85em;color:#ccc"><i class="fa-solid fa-check-square" style="color:#6c63ff;margin-right:4px"></i>已选 <strong style="color:#fff" id="stc-selected-count">${selectedCount}</strong> 个用户</span>
             <button id="stc-batch-delete-btn" class="menu_button" style="padding:5px 14px;font-size:.82em;background:#c0392b;color:#fff;white-space:nowrap">
                 <i class="fa-solid fa-trash-can"></i> 批量删除</button>
@@ -1547,11 +1547,11 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
         </div>
         <!-- Summary -->
         <div style="color:#888;font-size:.82em;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap">
-            <span>共 <strong style="color:#eee">${total}</strong> 个用户
+            <span>共 <strong style="color:var(--stc-text, #eee)">${total}</strong> 个用户
                 ${storageSearchTerm ? `（搜索"${esc(storageSearchTerm)}"）` : ''}
             </span>
-            <span>显示 <strong style="color:#eee">${startIdx}–${endIdx}</strong></span>
-            <span>本页占用 <strong style="color:#eee">${pageMiB} MiB</strong></span>
+            <span>显示 <strong style="color:var(--stc-text, #eee)">${startIdx}–${endIdx}</strong></span>
+            <span>本页占用 <strong style="color:var(--stc-text, #eee)">${pageMiB} MiB</strong></span>
         </div>
         ${pager}
         <div style="overflow-x:auto;margin-top:8px">
@@ -1632,7 +1632,7 @@ function renderStorageTable(data, total, totalPages, curPage, pageMiB, sortBy) {
         // Update row highlight
         container.querySelectorAll('.stc-user-checkbox').forEach(cb => {
             const row = cb.closest('tr');
-            if (row) row.style.background = cb.checked ? 'rgba(108,99,255,.15)' : '';
+            if (row) row.style.background = cb.checked ? 'var(--stc-accent-soft, rgba(108,99,255,.15))' : '';
         });
     };
 

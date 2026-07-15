@@ -30,4 +30,16 @@ describe('stc-admin-panel index.js warm-theme adaptation', () => {
     test('launcher/avatar gradient falls back to the original blue-to-purple gradient', () => {
         expect(js).toContain('var(--stc-accent, #4a90e2)');
     });
+
+    test('reveal button surface-2 background is theme-adaptive', () => {
+        expect(js).toContain('var(--stc-surface-2, rgba(22,33,62');
+    });
+});
+
+describe('stc-admin-panel admin-panel.js warm-theme adaptation', () => {
+    const js = readText(EXT_DIR + 'admin-panel.js');
+
+    test('console container background is theme-adaptive', () => {
+        expect(js).toContain('var(--stc-surface, #16213e)');
+    });
 });
