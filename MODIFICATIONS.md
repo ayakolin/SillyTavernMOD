@@ -477,7 +477,7 @@ enableDownloadableTokenizers: false
 - `default/content/settings.json` → `power_user`：`theme` 改为 `暖阳拿铁`，并把
   `main_text_color / italics_text_color / underline_text_color / quote_text_color /
   chat_tint_color / blur_tint_color / user_mes_blur_tint_color / bot_mes_blur_tint_color /
-  shadow_color / blur_strength / noShadows` 改为浅色暖值（详见
+  shadow_color / border_color / blur_strength / noShadows` 改为浅色暖值（详见
   `docs/superpowers/plans/2026-07-15-warm-theme-layer.md` Task 4）。
 
 **升级排查**：合并上游后若 `default/content/settings.json` 被覆盖，需按上表重新设置
