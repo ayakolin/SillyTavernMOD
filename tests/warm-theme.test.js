@@ -33,6 +33,8 @@ function relLum([r, g, b]) {
     };
     return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
 }
+// Alpha channel is ignored here; this is only safe while each tint composites over a
+// like-toned background. Revisit this if the underlying colors change.
 export function contrastRatio(fg, bg) {
     const L1 = relLum(toRgb(fg));
     const L2 = relLum(toRgb(bg));
@@ -113,5 +115,8 @@ describe('new-user seed settings default to warm-latte', () => {
     });
     test('seed main text meets WCAG AA on seed blur tint', () => {
         expect(contrastRatio(pu.main_text_color, pu.blur_tint_color)).toBeGreaterThanOrEqual(4.5);
+    });
+    test('seed custom_css equals the latte theme custom_css (so --stc-* tokens apply on init)', () => {
+        expect(pu.custom_css).toBe(latte.custom_css);
     });
 });

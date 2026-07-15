@@ -127,6 +127,7 @@
         "movingUIPreset": "Default",
         "noShadows": false,
         "theme": "暖阳拿铁",
+        "custom_css": ":root{--stc-bg:linear-gradient(160deg,#F7EFE4,#F1E3D2);--stc-surface:#FFFFFF;--stc-surface-2:#FBF4EA;--stc-text:#4A3F35;--stc-text-muted:#9B8B7A;--stc-accent:#E0895D;--stc-accent-hover:#D4784B;--stc-accent-soft:#FBE7D6;--stc-border:#EBDDCB;--stc-radius:14px;--stc-radius-sm:10px;--stc-radius-lg:20px;}.drawer-content{border-radius:var(--stc-radius-lg);}.mes{border-radius:var(--stc-radius);}#send_form,#send_textarea{border-radius:var(--stc-radius);}.menu_button{border-radius:var(--stc-radius-sm);}",
         "auto_swipe": false,
         "auto_swipe_minimum_length": 0,
         "auto_swipe_blacklist": [],

@@ -477,12 +477,19 @@ enableDownloadableTokenizers: false
 - `default/content/settings.json` → `power_user`：`theme` 改为 `暖阳拿铁`，并把
   `main_text_color / italics_text_color / underline_text_color / quote_text_color /
   chat_tint_color / blur_tint_color / user_mes_blur_tint_color / bot_mes_blur_tint_color /
-  shadow_color / border_color / blur_strength / noShadows` 改为浅色暖值（详见
-  `docs/superpowers/plans/2026-07-15-warm-theme-layer.md` Task 4）。
+  shadow_color / border_color / blur_strength / noShadows / custom_css` 改为与暖阳拿铁主题一致的
+  浅色暖值（详见 `docs/superpowers/plans/2026-07-15-warm-theme-layer.md` Task 4）。其中
+  `custom_css` 必须与 `warm-latte.json` 的 `custom_css` 保持逐字一致，否则新用户初始化时
+  `applyCustomCSS()` 不会带上 `--stc-*` 设计令牌与圆角细节（`applyTheme()` 才会读取主题文件的
+  `custom_css`，但初始化流程不会调用它）。
 
 **升级排查**：合并上游后若 `default/content/settings.json` 被覆盖，需按上表重新设置
-`power_user.theme` 与颜色字段；若 `index.json` 被覆盖需重新注册两个主题。仅影响新用户，
-不改动老用户已保存的主题。
+`power_user.theme` 与颜色字段（含 `custom_css`）；若 `index.json` 被覆盖需重新注册两个主题。
+仅影响新用户，不改动老用户已保存的主题。
+
+**注意**：本 MOD 的「默认用户模板」(`default-template`) 若已由管理员启用，会在注册时**覆盖**
+上述种子设置。若该模板是从 P0 之前的用户快照的（主题仍为旧主题），新用户将拿到旧主题、P0 默认
+不生效。启用了默认模板的部署需从一个已使用「暖阳拿铁」的用户重新快照模板。
 
 **测试**：`tests/warm-theme.test.js`（`cd tests && npm run test:unit -- warm-theme`）。
 
