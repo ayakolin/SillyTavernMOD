@@ -1,0 +1,11 @@
+{
+    "display_name": "STC Appearance",
+    "loading_order": 103,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "SillyTavernchat",
+    "version": "1.0.0",
+    "homePage": "https://github.com/zhaiiker/SillyTavernMOD"
+}

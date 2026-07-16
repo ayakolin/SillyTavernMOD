@@ -1,0 +1,225 @@
+/* ── STC Appearance ───────────────────────────────────────────
+ * Discoverable theme/appearance picker. Reuses P0's --stc-* design
+ * tokens (with literal fallbacks) so it stays legible under any
+ * theme, not just the warm ones.
+ * ──────────────────────────────────────────────────────────── */
+
+/* ── Toggle pill ───────────────────────────────────────────────
+ * Same look as stc-simple-mode's #stc-mode-toggle so the top bar
+ * reads as one family of pills. */
+#stc-appearance-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    line-height: normal;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    margin: 0 6px;
+    cursor: pointer;
+    border-radius: 999px;
+    background: var(--stc-surface-2, rgba(255, 255, 255, .08));
+    color: var(--stc-text, inherit);
+    border: 1px solid var(--stc-border, rgba(255, 255, 255, .15));
+    font-size: .82em;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background .15s, border-color .15s;
+}
+
+#stc-appearance-btn:hover {
+    border-color: var(--stc-accent, #888);
+}
+
+#stc-appearance-btn:focus-visible {
+    outline: 2px solid var(--stc-accent, #888);
+    outline-offset: 2px;
+}
+
+/* ── Panel ─────────────────────────────────────────────────────
+ * Fixed, non-blocking (no full-screen dim). Anchored near the top
+ * bar since that's where the toggle pill lives. */
+#stc-appearance-panel[hidden] {
+    display: none !important;
+}
+
+#stc-appearance-panel {
+    position: fixed;
+    top: 56px;
+    right: 16px;
+    z-index: 4000;
+    width: min(92vw, 360px);
+    max-height: min(80vh, 560px);
+    overflow-y: auto;
+    background: var(--stc-surface, #fff);
+    color: var(--stc-text, #333);
+    border: 1px solid var(--stc-border, rgba(0, 0, 0, .12));
+    border-radius: var(--stc-radius-lg, 20px);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, .18);
+    padding: 20px 22px;
+    animation: stcApprIn .25s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes stcApprIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stc-appr-title {
+    font-size: 1.15em;
+    font-weight: 700;
+    margin: 0 0 14px;
+    padding-right: 24px;
+}
+
+/* ── Button resets ─────────────────────────────────────────────
+ * Real <button> elements so everything stays keyboard-accessible;
+ * strip native chrome and inherit the surrounding font. */
+.stc-appr-close,
+.stc-appr-card,
+.stc-appr-more-toggle,
+.stc-appr-item {
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    line-height: normal;
+    cursor: pointer;
+}
+
+.stc-appr-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: var(--stc-text, #333);
+    opacity: .6;
+    font-size: 1.3em;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--stc-radius, 14px);
+}
+
+.stc-appr-close:hover {
+    opacity: 1;
+    background: var(--stc-accent-soft, rgba(0, 0, 0, .05));
+}
+
+/* ── Featured row: warm latte / cocoa cards ───────────────────── */
+.stc-appr-featured {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.stc-appr-card {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: var(--stc-surface-2, rgba(0, 0, 0, .04));
+    color: var(--stc-text, #333);
+    border: 2px solid var(--stc-border, rgba(0, 0, 0, .12));
+    border-radius: var(--stc-radius, 14px);
+    padding: 14px 10px;
+    text-align: center;
+    transition: border-color .15s, background .15s;
+}
+
+.stc-appr-card:hover {
+    border-color: var(--stc-accent, #888);
+}
+
+.stc-appr-card.selected {
+    border-color: var(--stc-accent, #888);
+    border-width: 2px;
+    background: var(--stc-accent-soft, rgba(0, 0, 0, .06));
+}
+
+.stc-appr-card-emoji {
+    font-size: 1.6em;
+    line-height: 1;
+}
+
+.stc-appr-card-name {
+    font-weight: 700;
+    font-size: .95em;
+}
+
+.stc-appr-card-subtitle {
+    font-size: .8em;
+    opacity: .7;
+}
+
+/* ── "更多主题" toggle + list ─────────────────────────────────── */
+.stc-appr-more-toggle {
+    display: block;
+    width: 100%;
+    background: transparent;
+    color: var(--stc-text, #333);
+    border: 1px solid var(--stc-border, rgba(0, 0, 0, .12));
+    border-radius: var(--stc-radius, 14px);
+    padding: 8px 12px;
+    text-align: left;
+    font-size: .9em;
+    font-weight: 600;
+    opacity: .85;
+    transition: border-color .15s, background .15s;
+}
+
+.stc-appr-more-toggle:hover {
+    opacity: 1;
+    border-color: var(--stc-accent, #888);
+}
+
+.stc-appr-more-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.stc-appr-item {
+    display: block;
+    width: 100%;
+    background: var(--stc-surface-2, rgba(0, 0, 0, .04));
+    color: var(--stc-text, #333);
+    border: 2px solid var(--stc-border, rgba(0, 0, 0, .12));
+    border-radius: var(--stc-radius-sm, 10px);
+    padding: 8px 12px;
+    text-align: left;
+    transition: border-color .15s, background .15s;
+}
+
+.stc-appr-item:hover {
+    border-color: var(--stc-accent, #888);
+}
+
+.stc-appr-item.selected {
+    border-color: var(--stc-accent, #888);
+    border-width: 2px;
+    background: var(--stc-accent-soft, rgba(0, 0, 0, .06));
+}
+
+/* ── Keyboard focus ────────────────────────────────────────────
+ * Every actionable element in the panel gets a visible outline. */
+.stc-appr-close:focus-visible,
+.stc-appr-card:focus-visible,
+.stc-appr-more-toggle:focus-visible,
+.stc-appr-item:focus-visible {
+    outline: 2px solid var(--stc-accent, #888);
+    outline-offset: 2px;
+}
