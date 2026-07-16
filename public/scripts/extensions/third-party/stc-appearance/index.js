@@ -119,6 +119,7 @@ function renderPanelContent(panel) {
         card.type = 'button';
         card.className = 'stc-appr-card';
         if (current === featured.name) card.classList.add('selected');
+        card.setAttribute('aria-current', current === featured.name ? 'true' : 'false');
 
         const emoji = document.createElement('div');
         emoji.className = 'stc-appr-card-emoji';
@@ -169,6 +170,7 @@ function renderPanelContent(panel) {
                 item.type = 'button';
                 item.className = 'stc-appr-item';
                 if (current === name) item.classList.add('selected');
+                item.setAttribute('aria-current', current === name ? 'true' : 'false');
                 item.textContent = name;
                 item.addEventListener('click', () => {
                     applyThemeByName(name);
@@ -221,7 +223,7 @@ function openPanel() {
     // Defer attaching the outside-click listener so the SAME click that
     // opened the panel (still bubbling up to document) doesn't immediately
     // close it again.
-    setTimeout(() => document.addEventListener('click', onDocumentClick), 0);
+    setTimeout(() => { if (!panel.hidden) document.addEventListener('click', onDocumentClick); }, 0);
 }
 
 /** Toggle the panel open/closed. */
