@@ -487,6 +487,25 @@ enableDownloadableTokenizers: false
 `power_user.theme` 与颜色字段（含 `custom_css`）；若 `index.json` 被覆盖需重新注册两个主题。
 仅影响新用户，不改动老用户已保存的主题。
 
+### 默认背景
+
+在 `default/content/settings.json` **顶层**新增 `background` 对象，让新用户默认使用自带背景
+`landscape autumn great tree.jpg`（该图为官方自带、已在 `index.json` 注册并随内容同步拷贝到用户）：
+
+```json
+"background": {
+    "name": "landscape autumn great tree.jpg",
+    "url": "url(\"backgrounds/landscape%20autumn%20great%20tree.jpg\")",
+    "fitting": "classic",
+    "animation": false,
+    "sortOrder": "az"
+}
+```
+
+`url` 需与 `backgrounds.js` 的 `generateUrlParameter()`（`url("backgrounds/" + encodeURIComponent(name) + ")"`）一致。
+`loadBackgroundSettings()` 读取 `settings.background`；缺 `name`/`url` 时回退到 `__transparent.png`。
+**仅影响新用户**；老用户保留已选背景。测试：`tests/default-background.test.js`。
+
 **注意**：本 MOD 的「默认用户模板」(`default-template`) 若已由管理员启用，会在注册时**覆盖**
 上述种子设置。若该模板是从 P0 之前的用户快照的（主题仍为旧主题），新用户将拿到旧主题、P0 默认
 不生效。启用了默认模板的部署需从一个已使用「暖阳拿铁」的用户重新快照模板。
