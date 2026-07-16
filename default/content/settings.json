@@ -1,5 +1,12 @@
 {
     "firstRun": true,
+    "background": {
+        "name": "landscape autumn great tree.jpg",
+        "url": "url(\"backgrounds/landscape%20autumn%20great%20tree.jpg\")",
+        "fitting": "classic",
+        "animation": false,
+        "sortOrder": "az"
+    },
     "username": "User",
     "api_server": "http://127.0.0.1:5000/api",
     "preset_settings": "RecoveredRuins",
